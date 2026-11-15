@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تنظیمات — خرید سریع کویرتایر</title>
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">⚡</div>
+      <div>
+        <h1>خرید سریع کویرتایر</h1>
+        <p class="sub">پایش بدون رفرش · انتخاب محصول · رفتن سریع به درگاه <span class="ver">v<b id="ver"></b></span></p>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="openSite" class="btn primary">باز کردن صفحه‌ی محصولات</button>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>پیش‌تنظیم سرعت</h2>
+    <p class="muted">هرچه سریع‌تر، احتمال محدود شدن حساب بیشتر. گزینه‌ی «متعادل» برای بیشتر موقعیت‌ها کافی است.</p>
+    <div class="presets">
+      <button class="preset" data-preset="safe">
+        <b>امن</b><span>کمترین ریسک · کندتر</span>
+      </button>
+      <button class="preset" data-preset="balanced">
+        <b>متعادل</b><span>پیشنهادی · تعادل سرعت و ایمنی</span>
+      </button>
+      <button class="preset" data-preset="aggressive">
+        <b>تهاجمی</b><span>سریع‌تر · ریسک بالاتر</span>
+      </button>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <h2>پایش موجودی</h2>
+      <label class="field"><span>فاصله چک (میلی‌ثانیه)</span>
+        <input type="number" data-key="interval" min="400" max="60000" step="100">
+      </label>
+      <label class="field"><span>حداقل فاصله بین درخواست‌ها (میلی‌ثانیه)</span>
+        <input type="number" data-key="minGap" min="150" max="60000" step="50">
+      </label>
+      <label class="field"><span>سقف درخواست در دقیقه</span>
+        <input type="number" data-key="maxPerMinute" min="3" max="240">
+      </label>
+      <label class="field"><span>تایم‌اوت درخواست (میلی‌ثانیه)</span>
+        <input type="number" data-key="timeout" min="2000" max="30000" step="500">
+      </label>
+      <label class="switch"><input type="checkbox" data-key="jitter"><i></i><span>فاصله‌ی تصادفی (شبیه رفتار انسانی)</span></label>
+    </section>
+
+    <section class="card">
+      <h2>محافظت در برابر بلاک شدن</h2>
+      <label class="field"><span>سقف انتظار خودکار پس از محدودیت (ms)</span>
+        <input type="number" data-key="maxCooldown" min="10000" max="900000" step="5000">
+      </label>
+      <label class="field"><span>آستانه‌ی استراحت طولانی (خطای پشت‌سرهم)</span>
+        <input type="number" data-key="breaker" min="2" max="30">
+      </label>
+      <label class="field"><span>مدت استراحت طولانی (ms)</span>
+        <input type="number" data-key="longCooldown" min="60000" max="3600000" step="60000">
+      </label>
+      <label class="switch"><input type="checkbox" data-key="pageFallback"><i></i><span>چک از طریق صفحه وقتی API محدود شد (فالبک)</span></label>
+      <label class="field"><span>فاصله‌ی چک صفحه (ms)</span>
+        <input type="number" data-key="pageInterval" min="2000" max="120000" step="500">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>خرید و پرداخت</h2>
+      <label class="field"><span>درگاه پرداخت</span>
+        <input type="text" data-key="gateway" placeholder="refahk / saderat / pnovin">
+      </label>
+      <label class="field"><span>بازنویسی لیست درگاه‌ها (key:نام، با کاما)</span>
+        <input type="text" data-key="gateways" placeholder="refahk:رفاه کارگران, saderat:صادرات">
+      </label>
+      <label class="switch"><input type="checkbox" data-key="autoAdd"><i></i><span>افزودن خودکار به سبد</span></label>
+      <label class="switch"><input type="checkbox" data-key="autoPay"><i></i><span>انتخاب درگاه و «تایید و پرداخت» خودکار</span></label>
+      <label class="switch"><input type="checkbox" data-key="stopAfterHit"><i></i><span>توقف پایش بعد از خرید موفق</span></label>
+      <label class="field"><span>تعداد تلاش افزودن/پرداخت</span>
+        <input type="number" data-key="payRetries" min="1" max="5">
+      </label>
+      <label class="field"><span>اعتبار خرید خودکار (ثانیه)</span>
+        <input type="number" data-key="armTtl" min="15" max="900" step="15">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>رفتار و رابط</h2>
+      <label class="switch"><input type="checkbox" data-key="focusOnHit"><i></i><span>آوردن تب به جلو هنگام موجود شدن</span></label>
+      <label class="switch"><input type="checkbox" data-key="sound"><i></i><span>صدا</span></label>
+      <label class="switch"><input type="checkbox" data-key="notify"><i></i><span>اعلان سیستم</span></label>
+      <label class="switch"><input type="checkbox" data-key="keepAwake"><i></i><span>جلوگیری از کند شدن تایمر در تب پنهان</span></label>
+      <label class="switch"><input type="checkbox" data-key="overlays"><i></i><span>دکمه‌ی «خرید فوری» روی کارت محصولات</span></label>
+      <label class="switch"><input type="checkbox" data-key="focusGatewayTab"><i></i><span>فوکوس تب درگاه بانک (دسترسی اختیاری)</span></label>
+    </section>
+
+    <section class="card">
+      <h2>دسترسی اختیاری</h2>
+      <p class="muted">برای فوکوس خودکار روی تب درگاه بانک، افزونه باید بتواند تب‌های سایر سایت‌ها را ببیند. بدون این دسترسی همه‌چیز کار می‌کند؛ فقط این یک قابلیت غیرفعال می‌ماند.</p>
+      <div class="row">
+        <span>وضعیت: <b id="permState" class="pill">—</b></span>
+        <span class="btns">
+          <button id="perm" class="btn">فعال کردن</button>
+          <button id="revoke" class="btn ghost">لغو دسترسی</button>
+        </span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>پشتیبان‌گیری</h2>
+      <div class="row">
+        <span class="btns">
+          <button id="export" class="btn ghost">صادرات تنظیمات</button>
+          <button id="import" class="btn ghost">واردات تنظیمات</button>
+          <input type="file" id="importFile" accept="application/json" hidden>
+          <button id="reset" class="btn danger">بازنشانی</button>
+        </span>
+      </div>
+      <p class="muted small">تنظیمات به‌صورت خودکار ذخیره می‌شود. تغییرات بلافاصله در تب‌های باز اعمال می‌شوند.</p>
+    </section>
+  </div>
+
+  <section class="card note">
+    <h2>چطور کار می‌کند؟</h2>
+    <ol>
+      <li>افزونه به‌جای نوکردن مکرر صفحه، فهرست موجودی را از پاسخ JSON سایت می‌خواند؛ خیلی سبک‌تر از رفرش کامل.</li>
+      <li>هر پاسخ ۴۲۹/۴۰۳ دیده شود، پایش خودکار از سرور عقب می‌کشد (Backoff) و پس از استراحت ادامه می‌دهد؛ بنابراین احتمال بن شدن کم می‌شود.</li>
+      <li>محصولات را در پنل انتخاب می‌کنید؛ به‌محض موجود شدن یکی (به‌ترتیب اولویت)، به سبد اضافه می‌شود و صفحه‌ی پرداخت باز می‌شود.</li>
+      <li>در صفحه‌ی پرداخت، درگاه انتخابی به‌طور خودکار قبل از «تایید و پرداخت» انتخاب می‌شود تا وقت تلف نشود.</li>
+    </ol>
+  </section>
+
+  <footer class="foot">
+    <span>ساخته‌شده برای استفاده‌ی شخصی. مسئولیت رعایت قوانین سایت بر عهده‌ی کاربر است.</span>
+  </footer>
+</div>
+<div class="toasts"></div>
+<script src="shared/defaults.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

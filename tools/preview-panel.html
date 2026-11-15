@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>پیش‌نمایش پنل خرید سریع کویرتایر</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;background:#0f172a;
+    background-image:radial-gradient(circle at 20% 10%,rgba(79,70,229,.35),transparent 45%),
+                     radial-gradient(circle at 85% 80%,rgba(37,99,235,.3),transparent 45%);}
+  .stage{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:30px 16px}
+  .cap{color:#cbd5e1;font-family:Vazirmatn,Tahoma,sans-serif;font-size:13px;text-align:center;line-height:2}
+  .cap b{color:#a5b4fc}
+  .fake-site{position:fixed;inset:0;background:linear-gradient(180deg,#f8fafc,#eef2ff);
+    font-family:Tahoma;color:#cbd5e1;display:grid;place-items:center;font-size:60px;z-index:-1;opacity:.15}
+  
+      :host{all:initial}
+      *{box-sizing:border-box;margin:0;padding:0}
+      .panel{width:352px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;direction:rtl;
+        font-family:Vazirmatn,Tahoma,"Segoe UI",sans-serif;font-size:13px;line-height:1.6;color:#1f2937;
+        background:#fff;border-radius:16px;box-shadow:0 18px 48px rgba(15,23,42,.26),0 0 0 1px rgba(15,23,42,.06);overflow:hidden}
+      .hd{flex:none;display:flex;align-items:center;gap:8px;padding:10px 12px;color:#fff;cursor:grab;user-select:none;
+        background:linear-gradient(135deg,#2563eb,#4f46e5)}
+      .hd:active{cursor:grabbing}
+      .hd .ttl{flex:1;font-weight:800;font-size:13.5px;letter-spacing:.1px}
+      .dot{width:9px;height:9px;border-radius:50%;background:#94a3b8;flex:none;transition:.2s}
+      .dot.run{background:#4ade80;box-shadow:0 0 0 0 rgba(74,222,128,.7);animation:pulse 1.4s infinite}
+      .dot.cool{background:#fbbf24}
+      @keyframes pulse{70%{box-shadow:0 0 0 8px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
+      .ib{width:25px;height:25px;border:0;border-radius:7px;background:rgba(255,255,255,.16);color:#fff;font-size:13px;cursor:pointer;
+        display:grid;place-items:center;line-height:1;flex:none}
+      .ib:hover{background:rgba(255,255,255,.32)}
+      .bd{padding:10px 12px 12px;overflow-y:auto;min-height:0}
+      .panel.closed .bd{display:none}
+      .bd::-webkit-scrollbar,.list::-webkit-scrollbar{width:6px}
+      .bd::-webkit-scrollbar-thumb,.list::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
+
+      .tabs{display:flex;gap:4px;background:#f1f5f9;border-radius:10px;padding:3px;margin-bottom:10px}
+      .tabs button{flex:1;height:30px;border:0;border-radius:8px;background:transparent;font:inherit;font-size:12px;font-weight:700;
+        color:#64748b;cursor:pointer}
+      .tabs button.on{background:#fff;color:#4338ca;box-shadow:0 1px 4px rgba(15,23,42,.12)}
+
+      .search{position:relative;margin-bottom:8px}
+      .search input{width:100%;height:32px;padding:0 30px 0 10px;border:1px solid #e2e8f0;border-radius:9px;font:inherit;font-size:12px;color:#1f2937}
+      .search input:focus{outline:0;border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,.16)}
+      .search span{position:absolute;top:50%;right:9px;transform:translateY(-50%);color:#94a3b8;font-size:12px}
+
+      .tools{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+      .tools button{border:0;background:#eef2ff;color:#4338ca;font:inherit;font-size:11px;font-weight:700;padding:3px 8px;border-radius:7px;cursor:pointer}
+      .tools button:hover{background:#e0e7ff}
+      .tools .cnt{margin-right:auto;color:#64748b;font-size:11px}
+
+      .notice{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fffbeb;border:1px solid #fde68a;color:#92400e;
+        border-radius:9px;padding:6px 9px;font-size:11px;margin-bottom:6px}
+      .notice button{border:0;background:#f59e0b;color:#fff;border-radius:7px;padding:2px 8px;font:inherit;font-size:10.5px;font-weight:700;cursor:pointer}
+      .list{max-height:236px;overflow-y:auto;padding-left:2px;display:flex;flex-direction:column;gap:5px}
+      .row{display:flex;align-items:center;gap:8px;padding:7px 8px;border:1px solid #e8edf5;border-radius:10px;background:#fff;transition:.14s}
+      .row:hover{border-color:#c7d2fe;background:#fafbff}
+      .row.on{border-color:#818cf8;background:#eef2ff}
+      .chk{position:relative;width:16px;height:16px;flex:none;cursor:pointer}
+      .chk input{position:absolute;inset:0;opacity:0;cursor:pointer;margin:0}
+      .chk i{position:absolute;inset:0;border:1.6px solid #cbd5e1;border-radius:5px;background:#fff;display:grid;place-items:center;transition:.14s}
+      .chk i::after{content:"";width:8px;height:4px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) scale(0);transition:.14s;margin-top:-2px}
+      .chk input:checked + i{background:#4f46e5;border-color:#4f46e5}
+      .chk input:checked + i::after{transform:rotate(-45deg) scale(1)}
+      .nm{flex:1;min-width:0;font-weight:700;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .nm small{display:block;font-weight:500;font-size:11px;color:#64748b;direction:ltr;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .badge{flex:none;font-size:10.5px;padding:1px 7px;border-radius:999px;background:#f1f5f9;color:#64748b;white-space:nowrap}
+      .badge.on{background:#dcfce7;color:#15803d}.badge.off{background:#fee2e2;color:#b91c1c}.badge.ex{background:#fef3c7;color:#b45309}
+      .qb{flex:none;width:26px;height:26px;border:0;border-radius:8px;background:#eef2ff;color:#4338ca;font-size:13px;cursor:pointer;display:grid;place-items:center}
+      .qb:hover{background:#e0e7ff}
+      .qb:disabled{opacity:.35;cursor:not-allowed}
+      .pri{flex:none;display:flex;flex-direction:column;gap:1px}
+      .pri button{width:18px;height:15px;border:0;background:transparent;color:#94a3b8;font-size:9px;cursor:pointer;line-height:1;padding:0}
+      .pri button:hover{color:#4f46e5}
+      .empty{color:#94a3b8;font-size:12px;text-align:center;padding:16px 0}
+
+      .sec{font-size:11.5px;font-weight:700;color:#64748b;margin:12px 0 6px}
+      .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+      .seg button{height:32px;border:1px solid #e5e7eb;background:#fff;border-radius:9px;font:inherit;font-size:11.5px;color:#334155;cursor:pointer;transition:.14s}
+      .seg button:hover{border-color:#c7d2fe}
+      .seg button.on{border-color:#4f46e5;background:#eef2ff;color:#3730a3;font-weight:800}
+      .seg.gw button{font-size:11px}
+      .seg.gw{grid-template-columns:repeat(2,1fr)}
+
+      .opt{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#475569;margin:9px 0 0;gap:8px}
+      .opt .hint{color:#94a3b8;font-size:10.5px}
+      .sw{position:relative;flex:none;width:38px;height:22px;cursor:pointer}
+      .sw input{position:absolute;opacity:0;width:0;height:0}
+      .sw span{position:absolute;inset:0;border-radius:999px;background:#cbd5e1;transition:.2s}
+      .sw span::after{content:"";position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.2s}
+      .sw input:checked + span{background:#4f46e5}
+      .sw input:checked + span::after{transform:translateX(-16px)}
+
+      details{margin:10px 0 0;border:1px solid #e8edf5;border-radius:10px;background:#fafbfe}
+      summary{cursor:pointer;padding:7px 10px;font-size:11.5px;font-weight:700;color:#475569;list-style:none;display:flex;justify-content:space-between;user-select:none}
+      summary::-webkit-details-marker{display:none}
+      summary::after{content:"▾";transition:.2s}
+      details[open] > summary::after{transform:rotate(180deg)}
+      .set{display:grid;grid-template-columns:1fr 88px;gap:7px 8px;align-items:center;padding:4px 10px 12px;font-size:11.5px;color:#475569}
+      .set input[type=number],.set input[type=text]{width:100%;height:29px;padding:0 7px;border:1px solid #dbe2ec;border-radius:8px;direction:ltr;font:inherit;font-size:11.5px;background:#fff;color:#111}
+      .set input:focus{outline:0;border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,.16)}
+      .set .sw{justify-self:end}
+
+      .go{width:100%;height:42px;margin-top:11px;border:0;border-radius:11px;color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer;
+        background:linear-gradient(135deg,#16a34a,#22c55e);box-shadow:0 6px 16px rgba(34,197,94,.32);transition:.15s}
+      .go:hover{filter:brightness(1.05)}
+      .go.stop{background:linear-gradient(135deg,#dc2626,#ef4444);box-shadow:0 6px 16px rgba(239,68,68,.32)}
+      .go:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;filter:none}
+
+      .rowbtns{display:flex;gap:6px;margin-top:6px}
+      .mini{flex:1;height:32px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;color:#4338ca;font:inherit;font-size:12px;
+        font-weight:700;cursor:pointer;transition:.14s}
+      .mini:hover{background:#eef2ff;border-color:#c7d2fe}
+      .stat{display:flex;align-items:center;gap:6px;margin-top:9px;font-size:11px;color:#64748b;flex-wrap:wrap}
+      .pill{background:#f1f5f9;border-radius:999px;padding:2px 8px;white-space:nowrap}
+      .pill.good{background:#dcfce7;color:#15803d}.pill.warn{background:#fef3c7;color:#b45309}.pill.bad{background:#fee2e2;color:#b91c1c}
+      .meter{flex:1;min-width:60px;height:5px;border-radius:999px;background:#e2e8f0;overflow:hidden}
+      .meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#22c55e,#4f46e5);transition:width .3s}
+
+      .log{margin-top:9px;padding:7px 9px;border-radius:9px;background:#f8fafc;border:1px solid #eef2f7;color:#475569;font-size:11.5px;
+        max-height:92px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+      .log div{padding:1px 0}
+      .log .ok{color:#15803d}.log .warn{color:#b45309}.log .err{color:#b91c1c}
+      .foot{margin-top:8px;font-size:10.5px;color:#94a3b8;text-align:center}
+      .foot b{color:#6366f1}
+      .hidden{display:none !important}
+    
+</style></head>
+<body>
+<div class="fake-site">kavirtire.ir</div>
+<div class="stage">
+  <div class="panel">
+
+    <div class="panel" id="panel">
+      <div class="hd" id="hd">
+        <span class="dot run" id="dot"></span>
+        <span class="ttl">خرید سریع کویرتایر</span>
+        <button class="ib" id="min" title="جمع/باز کردن">–</button>
+        <button class="ib" id="hide" title="پنهان کردن (Alt+Shift+P)">✕</button>
+      </div>
+      <div class="bd">
+        <div class="tabs" id="tabs">
+          <button data-tab="products" class="on">محصولات</button>
+          <button data-tab="pay">پرداخت</button>
+          <button data-tab="adv">پیشرفته</button>
+        </div>
+
+        <!-- محصولات -->
+        <div data-pane="products">
+          <div class="search"><span>⌕</span><input id="q" placeholder="جست‌وجو: برند، سایز، شناسه…"></div>
+          <div class="tools">
+            <button id="all">همه</button>
+            <button id="none">هیچ</button>
+            <button id="onlyAvail">فقط موجود</button>
+            <span class="cnt">۲ از ۵ · ۲ موجود</span>
+          </div>
+          <div class="notice hidden" id="orphans">
+            برخی انتخاب‌ها در صفحه‌ی فعلی نیستند (خودرو/صفحه‌ی دیگر).
+            <button id="pruneOrphans">پاک کردن آن‌ها</button>
+          </div>
+          <div class="list" id="list"><div class="row on">
+      <label class="chk"><input type="checkbox" checked><i></i></label>
+      <div class="nm">کویر تایر یارا 185/65R15<small>185/65R15 · 101</small></div>
+      <span class="badge on">موجود</span>
+      <div class="pri"><button>▲</button><button>▼</button></div>
+      <button class="qb" >⚡</button>
+    </div><div class="row">
+      <label class="chk"><input type="checkbox" ><i></i></label>
+      <div class="nm">کویر تایر یارا 195/65R15<small>195/65R15 · 102</small></div>
+      <span class="badge off">ناموجود</span>
+      <div class="pri"><button>▲</button><button>▼</button></div>
+      <button class="qb" disabled>⚡</button>
+    </div><div class="row on">
+      <label class="chk"><input type="checkbox" checked><i></i></label>
+      <div class="nm">کویر تایر ماراتن 205/60R16<small>205/60R16 · 103</small></div>
+      <span class="badge on">موجود</span>
+      <div class="pri"><button>▲</button><button>▼</button></div>
+      <button class="qb" >⚡</button>
+    </div><div class="row">
+      <label class="chk"><input type="checkbox" ><i></i></label>
+      <div class="nm">کویر تایر ماراتن 215/65R16<small>215/65R16 · 104</small></div>
+      <span class="badge ex">اتمام</span>
+      <div class="pri"><button>▲</button><button>▼</button></div>
+      <button class="qb" disabled>⚡</button>
+    </div><div class="row">
+      <label class="chk"><input type="checkbox" ><i></i></label>
+      <div class="nm">کویر تایر ویکتورا 225/45R17<small>225/45R17 · 105</small></div>
+      <span class="badge off">ناموجود</span>
+      <div class="pri"><button>▲</button><button>▼</button></div>
+      <button class="qb" disabled>⚡</button>
+    </div></div>
+          <div class="opt"><span>افزودن خودکار به سبد وقتی موجود شد</span><label class="sw"><input type="checkbox" id="autoAdd" checked><span></span></label></div>
+          <div class="opt"><span>خرید محصولی که از قبل موجود است</span><label class="sw"><input type="checkbox" id="buyIfAlreadyAvailable"><span></span></label></div>
+          <div class="opt"><span>توقف پایش بعد از خرید موفق</span><label class="sw"><input type="checkbox" id="stopAfterHit" checked><span></span></label></div>
+        </div>
+
+        <!-- پرداخت -->
+        <div data-pane="pay" class="hidden">
+          <div class="sec">درگاه پرداخت</div>
+          <div class="seg gw" id="gws"><button class="on">رفاه کارگران</button><button>صادرات</button><button>اقتصاد نوین</button><button>دستی (هیچ‌کدام)</button></div>
+          <div class="opt"><span>انتخاب درگاه و «تایید و پرداخت» خودکار</span><label class="sw"><input type="checkbox" id="autoPay" checked><span></span></label></div>
+          <div class="opt"><span>آوردن تب هنگام موجود شدن</span><label class="sw"><input type="checkbox" id="focusOnHit" checked><span></span></label></div>
+          <div class="opt"><span>فوکوس تب درگاه بانک <span class="hint">(نیاز به دسترسی اختیاری)</span></span><label class="sw"><input type="checkbox" id="focusGatewayTab"><span></span></label></div>
+          <div class="opt"><span>صدا و اعلان</span><label class="sw"><input type="checkbox" id="sound" checked><span></span></label></div>
+          <div class="opt"><span>جلوگیری از خواب تایمر در تب پنهان</span><label class="sw"><input type="checkbox" id="keepAwake" checked><span></span></label></div>
+          <div class="set" style="grid-template-columns:1fr 88px;padding:10px 0 0;border-radius:0;background:none">
+            <span>تعداد تلاش پرداخت</span><input type="number" id="payRetries" min="1" max="5">
+            <span>اعتبار خرید خودکار (ثانیه)</span><input type="number" id="armTtl" min="15" max="900" step="15">
+          </div>
+          <div class="foot">درگاه‌های پرکاربرد:</div>
+        </div>
+
+        <!-- پیشرفته -->
+        <div data-pane="adv" class="hidden">
+          <div class="sec">پیش‌تنظیم سرعت</div>
+          <div class="seg" id="presets"><button>امن</button><button class="on">متعادل</button><button>تهاجمی</button></div>
+          <div class="sec">محافظت از حساب</div>
+          <div class="set" style="padding:0;background:none;border:0">
+            <span>فاصله چک (ms)</span><input type="number" id="interval" min="400" max="60000" step="100">
+            <span>حداقل فاصله درخواست‌ها (ms)</span><input type="number" id="minGap" min="150" max="60000" step="50">
+            <span>سقف درخواست در دقیقه</span><input type="number" id="maxPerMinute" min="3" max="240">
+            <span>تایم‌اوت درخواست (ms)</span><input type="number" id="timeout" min="2000" max="30000" step="500">
+            <span>آستانه استراحت (خطای پشت‌سرهم)</span><input type="number" id="breaker" min="2" max="30">
+            <span>استراحت طولانی (ms)</span><input type="number" id="longCooldown" min="60000" max="3600000" step="60000">
+            <span>فاصله‌ی تصادفی</span><label class="sw"><input type="checkbox" id="jitter" checked><span></span></label>
+            <span>چک از طریق صفحه هنگام محدودیت</span><label class="sw"><input type="checkbox" id="pageFallback"><span></span></label>
+            <span>فاصله چک صفحه (ms)</span><input type="number" id="pageInterval" min="2000" max="120000" step="500">
+            <span>سقف صفحه در دقیقه</span><input type="number" id="pageMaxPerMinute" min="1" max="30">
+          </div>
+          <details>
+            <summary>تنظیمات حرفه‌ای (آدرس‌ها و انتخابگرها)</summary>
+            <div class="set">
+              <span>آدرس API موجودی</span><input type="text" id="apiUrl">
+              <span>آدرس صفحه محصولات</span><input type="text" id="pageUrl">
+              <span>انتخابگر کارت محصول</span><input type="text" id="cardSelector">
+              <span>روش افزودن</span><input type="text" id="addMethod" placeholder="auto | wire | click">
+              <span>لیست درگاه‌ها (key:نام)</span><input type="text" id="gateways" placeholder="refahk:رفاه, saderat:صادرات">
+            </div>
+          </details>
+          <div class="foot">تنظیمات به‌طور خودکار ذخیره می‌شود.</div>
+        </div>
+
+        <button class="go stop" id="go">⏹ توقف پایش</button>
+        <div class="rowbtns">
+          <button class="mini" id="buyNow" title="همین حالا برای محصولات انتخاب‌شده‌ی موجود، خرید را انجام بده">⚡ خرید فوری</button>
+          <button class="mini" id="resetBase" title="وضعیت فعلی را دوباره خط مبنا بگیر">↺ بازگرفتن خط مبنا</button>
+        </div>
+        <div class="stat">
+          <span class="pill good" id="pMode">در حال پایش</span>
+          <span class="pill" id="pLat">142 ms</span>
+          <span class="pill" id="pChecks">چک: ۱٬۲۴۸</span>
+          <span class="pill warn hidden" id="pOwner"></span>
+          <span class="meter" title="بودجه‌ی درخواست در دقیقه"><i id="meter" style="width:38%"></i></span>
+        </div>
+        <div class="log" id="log"><div class="">۰۸:۴۱:۰۲ — خط مبنا ثبت شد؛ ۲ محصول همین حالا موجود است و منتظر تغییر بعدی می‌مانیم.</div><div class="ok">۰۸:۴۱:۰۳ — ▶ پایش شروع شد (۲ محصول)</div><div class="warn">۰۸:۴۱:۱۱ — ⚠️ محدودیت سرور (۴۲۹) — برگشت بعد از ۴.۵ ثانیه</div><div class="ok">۰۸:۴۱:۱۶ — ✅ محدودیت تمام شد؛ با فاصله‌ی امن ادامه می‌دهیم</div><div class="">۰۸:۴۱:۱۷ — ۰۸:۴۱:۱۷ — (API) هنوز ناموجود (138ms)</div></div>
+      </div>
+    </div></div>
+  <div class="cap">
+    پیش‌نمایش ظاهر پنل • <b>این فایل فقط برای نمایش است</b><br>
+    برای استفاده‌ی واقعی، پوشه‌ی <b>extension/</b> را در chrome://extensions بارگذاری کنید
+  </div>
+</div>
+</body></html>
