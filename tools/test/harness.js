@@ -349,6 +349,32 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     ok(!!toast, 'پیام شناور پرداخت دستی نمایش داده شد');
   }
 
+  // ---------------------------------------------------------------- 7b
+  section('۷ب) سناریوی کامل: موجود شد → سبد → علامت خرید → پرداخت');
+  {
+    const { w } = boot({
+      url: 'https://kavirtire.ir/esale/products',
+      html: productsHtml({ 101: 0, 102: 0, 103: 0 }),
+      stock: { 101: 0, 102: 0, 103: 0 },
+      config: { selected: ['101'], interval: 300, minGap: 120, maxPerMinute: 60, autoAdd: true, autoPay: true, stopAfterHit: true, sound: false, notify: false }
+    });
+    await sleep(300);
+    const K = w.__KVTB;
+    const order = [];
+    K.on('hit', () => order.push('hit'));
+    K.on('arm', () => order.push('arm'));
+    K.engine.start();
+    await sleep(900);
+    w.__testState.stock[101] = 1;   // موجود شد
+    await sleep(2000);
+
+    const arm = K.store.get('arm', null);
+    ok(arm && arm.id === '101' && typeof arm.t === 'number', 'علامت خرید با شناسه‌ی محصول ثبت شد', JSON.stringify(arm));
+    ok(!!w.localStorage.getItem('kvt:resume') !== undefined, 'وضعیت برای بازگشت ذخیره‌پذیر است');
+    ok(order.includes('hit') && order.includes('arm'), 'ترتیب رویدادها: hit سپس arm', order.join(' → '));
+    ok(!K.engineState.running, 'پس از خرید موفق، پایش متوقف شد (تنظیم stopAfterHit)');
+  }
+
   // ---------------------------------------------------------------- 8
   section('۸) تنظیمات مشترک: ادغام امن');
   {

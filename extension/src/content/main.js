@@ -279,6 +279,10 @@
     K.log('افزونه‌ی خرید سریع کویرتایر فعال شد (v' + K.version + ')', 'ok');
     mount();
     watchPageRisks();
+    // اصلاح خودکار وضعیت روی خطای Livewire (۴۱۹ نشست منقضی / ۴۲۹)
+    K.watchLivewireErrors((ev) => {
+      if (ev.type === 'lw-fail') K.emit('lw-fail', { status: ev.status });
+    });
     try { mo.observe(document.body || document.documentElement, { childList: true, subtree: true }); } catch (e) { /* noop */ }
   });
 

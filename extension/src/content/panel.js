@@ -600,8 +600,16 @@
       }
       dot.classList.toggle('cool', cool > 0);
       if (cool > 0) {
-        mode.textContent = 'استراحت ' + Math.ceil(cool / 1000) + 'ث';
+        const secs = Math.ceil(cool / 1000);
+        mode.textContent = '⏳ استراحت ' + secs + ' ثانیه';
         mode.className = 'pill warn';
+        if (secs <= 3 && !K.__coolWarned) {
+          K.__coolWarned = true;
+          K.log('استراحت محافظتی تقریباً تمام شد؛ پایش ادامه می‌یابد.', 'ok');
+        }
+        if (secs > 3) K.__coolWarned = false;
+      } else if (!st.running) {
+        K.__coolWarned = false;
       }
       updateGo();
     };
