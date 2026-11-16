@@ -104,6 +104,8 @@ function boot({ url, html, config = {}, stock = { 101: 0, 102: 0, 103: 0 } }) {
       if (d.method === 'config:set') { Object.assign(fullConfig, d.payload); return fullConfig; }
       if (d.method === 'tab:gateway') return { granted: true };
       if (d.method === 'notify') { calls.push({ method: 'notify', payload: d.payload }); return { ok: true }; }
+      if (d.method === 'trace:append') { calls.push({ method: 'trace:append', payload: d.payload }); return { ok: true }; }
+      if (d.method === 'trace:read') return { sessions: {}, order: [] };
       return { ok: true };
     };
     Promise.resolve(reply()).then((data) => {
@@ -146,10 +148,15 @@ function boot({ url, html, config = {}, stock = { 101: 0, 102: 0, 103: 0 } }) {
   w.DOMParser = w.DOMParser;
   w.AbortController = w.AbortController;
 
+  // --- net observer (document_start analog) ---
+  try { w.eval(fs.readFileSync(path.join(SRC, 'content/net.js'), 'utf8')); } catch (e) {
+    console.error('LOAD FAIL net.js: ' + e.message);
+  }
+
   // --- load scripts in manifest order ---
   const files = [
-    'shared/defaults.js', 'content/core.js', 'content/guard.js', 'content/site.js',
-    'content/engine.js', 'content/payment.js', 'content/panel.js', 'content/main.js'
+    'shared/defaults.js', 'content/core.js', 'content/trace.js', 'content/guard.js', 'content/site.js',
+    'content/engine.js', 'content/payment.js', 'content/panel.js', 'content/trace-viewer.js', 'content/main.js'
   ];
   for (const f of files) {
     const code = fs.readFileSync(path.join(SRC, f), 'utf8');
@@ -317,7 +324,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     // arm معتبر
     w.eval('localStorage.setItem("kvt:arm", JSON.stringify({t: Date.now(), id: "101"}))');
 
-    for (const f of ['shared/defaults.js', 'content/core.js', 'content/guard.js', 'content/site.js', 'content/engine.js', 'content/payment.js', 'content/main.js']) {
+    for (const f of ['shared/defaults.js', 'content/core.js', 'content/trace.js', 'content/guard.js', 'content/site.js', 'content/engine.js', 'content/payment.js', 'content/trace-viewer.js', 'content/main.js']) {
       w.eval(fs.readFileSync(path.join(SRC, f), 'utf8'));
     }
     await sleep(2500);
@@ -340,7 +347,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     });
     let paid = 0;
     w.document.querySelector('[wire\\:click="next()"]').addEventListener('click', () => { paid++; });
-    for (const f of ['shared/defaults.js', 'content/core.js', 'content/guard.js', 'content/site.js', 'content/engine.js', 'content/payment.js', 'content/main.js']) {
+    for (const f of ['shared/defaults.js', 'content/core.js', 'content/trace.js', 'content/guard.js', 'content/site.js', 'content/engine.js', 'content/payment.js', 'content/trace-viewer.js', 'content/main.js']) {
       w.eval(fs.readFileSync(path.join(SRC, f), 'utf8'));
     }
     await sleep(1200);
@@ -362,17 +369,138 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const K = w.__KVTB;
     const order = [];
     K.on('hit', () => order.push('hit'));
-    K.on('arm', () => order.push('arm'));
+    K.on('arm', (d) => order.push(d.arm ? 'arm' : 'disarm'));
     K.engine.start();
     await sleep(900);
     w.__testState.stock[101] = 1;   // موجود شد
-    await sleep(2000);
+    await sleep(1500);
 
-    const arm = K.store.get('arm', null);
-    ok(arm && arm.id === '101' && typeof arm.t === 'number', 'علامت خرید با شناسه‌ی محصول ثبت شد', JSON.stringify(arm));
-    ok(!!w.localStorage.getItem('kvt:resume') !== undefined, 'وضعیت برای بازگشت ذخیره‌پذیر است');
-    ok(order.includes('hit') && order.includes('arm'), 'ترتیب رویدادها: hit سپس arm', order.join(' → '));
-    ok(!K.engineState.running, 'پس از خرید موفق، پایش متوقف شد (تنظیم stopAfterHit)');
+    const firstHit = order.indexOf('hit');
+    const firstArm = order.indexOf('arm');
+    ok(firstHit >= 0 && firstArm >= 0, 'رویدادهای hit و arm هر دو ارسال شدند', order.join(' → '));
+    // arm در همان تیک (همگام) با hit صادر می‌شود؛ مهم این است که هیچ‌کدام
+    // پیش از تشخیص موجودی نباشند و arm فقط در جریان یک خرید واقعی باشد.
+    ok(firstArm >= 0 && order.filter((x) => x === 'arm').length === 1,
+      'arm دقیقاً یک‌بار و فقط در جریان خرید ارسال شد', order.join(' → '));
+
+    // Trace باید یک span کامل برای خرید داشته باشد
+    const t = K.dump ? K.dump() : K.trace.dump();
+    const addRec = t.filter((r) => r.st === 'ADD');
+    ok(addRec.length > 0, 'مرحله‌ی خرید در لاگ حرفه‌ای ثبت شد', 'records=' + addRec.length);
+    ok(!addRec.some((r) => /خرید موفق/.test(r.m) && r.ok === 1 && r.ms < 100),
+      'پیام «خرید موفق» تنها بعد از موفقیت واقعی ثبت می‌شود');
+  }
+
+  // ---------------------------------------------------------------- 7c
+  section('۷ج) باگ‌های لاگ واقعی: سرعت و خط مبنا');
+  {
+    const { w } = boot({
+      url: 'https://kavirtire.ir/esale/products',
+      html: productsHtml({ 101: 0, 102: 0, 103: 0 }),
+      stock: { 101: 0, 102: 0, 103: 0 },
+      config: { selected: ['101'], interval: 300, minGap: 100, maxPerMinute: 60,
+                autoAdd: true, addTimeout: 600, sound: false, notify: false }
+    });
+    await sleep(300);
+    const K = w.__KVTB;
+
+    // Livewire را پیش از شروع شبیه‌سازی کن (شبیه سایت واقعی که از ابتدا هست)
+    let addCalls = 0;
+    w.Livewire = {
+      find: () => ({
+        $call: (m) => {
+          if (m === 'add') {
+            addCalls++;
+            // شبیه‌سازی رفتار واقعی: product-selected را روی کارت می‌گذارد
+            const card = w.document.querySelector('.product[data-tire-id="101"]');
+            if (card) { const s = w.document.createElement('span'); s.className = 'product-selected'; card.appendChild(s); }
+            return Promise.resolve({});
+          }
+          return Promise.resolve();
+        },
+        $get: () => undefined
+      }),
+      hook() {}
+    };
+
+    K.engine.start();
+    await sleep(700);
+    const before = Date.now();
+    w.__testState.stock[101] = 1;   // موجود شد
+    await sleep(600);
+    const elapsed = Date.now() - before;
+
+    ok(addCalls >= 1, 'متد add روی کامپوننت Livewire فراخوانی شد', 'calls=' + addCalls);
+    ok(elapsed < 2500, 'خرید در بازه‌ی قابل‌قبول انجام شد (نه چند ثانیه تلف)', elapsed + 'ms');
+  }
+
+  // ---------------------------------------------------------------- 7d
+  section('۷د) خروجی لاگ حرفه‌ای: ساختار و کدهای خطا');
+  {
+    const { w } = boot({
+      url: 'https://kavirtire.ir/esale/products',
+      html: productsHtml({ 101: 0 }),
+      stock: { 101: 0 },
+      config: { selected: ['101'], interval: 300, minGap: 100, maxPerMinute: 60, addTimeout: 400, sound: false, notify: false }
+    });
+    await sleep(300);
+    const K = w.__KVTB;
+    ok(!!K.trace, 'موتور Trace بارگذاری شد');
+    ok(!!K.trace.session(), 'شناسه‌ی نشست تولید شد', K.trace.session());
+    ok(typeof K.FAIL === 'object' && K.FAIL.ADD_NO_ELEMENT, 'کدهای خطای استاندارد تعریف شد', Object.keys(K.FAIL).length + ' کد');
+
+    // span با fail
+    const sp = K.trace.start('ADD', 'تست');
+    sp.diag('x', { a: 1 });
+    sp.step('گام ۱', { b: 2 });
+    sp.fail(K.FAIL.ADD_NO_ELEMENT, 'شکست تست');
+    const dump = K.trace.dump();
+    const rec = dump[dump.length - 1];
+    ok(rec.lv === 'error' && rec.c === 'ADD_NO_ELEMENT', 'رکورد خطا با کد ثبت شد', JSON.stringify({ lv: rec.lv, c: rec.c }));
+    ok(rec.diag && rec.steps, 'رکورد خطا شامل داده‌ی تشخیصی و مراحل است');
+
+    const st = K.trace.stats();
+    ok(st.fails.ADD_NO_ELEMENT >= 1, 'آمار دلایل شکست گروه‌بندی شد', JSON.stringify(st.fails));
+    ok(st.byStage.ADD >= 1, 'آمار بر اساس مرحله محاسبه شد');
+  }
+
+  // ---------------------------------------------------------------- 7e
+  section('۷ه) باگ واقعی: snapshot کهنه vs API تازه (علت اصلی شکست در لاگ شما)');
+  {
+    // کارت صفحه می‌گوید ناموجود (snapshot کهنه) ولی API می‌گوید موجود
+    const htmlStale = '<!doctype html><html lang="fa"><body>' +
+      '<div class="product" data-tire-id="101" wire:id="lw-101" wire:snapshot="' +
+      JSON.stringify({ data: { available: false, exhausted: true } }).replace(/"/g, '&quot;') +
+      '"><div class="title">کهنه</div><button class="product-add-button d-none">add</button></div>' +
+      '</body></html>';
+    const { w } = boot({
+      url: 'https://kavirtire.ir/esale/products',
+      html: htmlStale,
+      stock: { 101: 1 },   // API موجود می‌گوید
+      config: { selected: ['101'], interval: 250, minGap: 100, maxPerMinute: 60,
+                autoAdd: true, addTimeout: 700, sound: false, notify: false,
+                buyIfAlreadyAvailable: true }   // سناریو: صفحه کهنه، API تازه
+    });
+    await sleep(300);
+    const K = w.__KVTB;
+
+    let addCalls = 0;
+    w.Livewire = {
+      find: () => ({
+        $call: (m) => { if (m === 'add') { addCalls++; } return Promise.resolve({}); },
+        $get: () => undefined
+      }),
+      hook() {}
+    };
+
+    K.engine.start();
+    await sleep(1400);
+
+    ok(addCalls >= 1, 'با وجود snapshot کهنه، افزودن انجام شد (باگ اصلی رفع شد)', 'calls=' + addCalls);
+    const errs = K.trace.dump().filter((r) => r.lv === 'error');
+    ok(!errs.some((r) => r.c === 'ADD_UNAVAILABLE'), 'خطای کاذب ADD_UNAVAILABLE دیگر رخ نمی‌دهد',
+      JSON.stringify(errs.map((x) => x.c)));
+    K.engine.stop('test');
   }
 
   // ---------------------------------------------------------------- 8

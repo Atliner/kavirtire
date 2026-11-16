@@ -44,6 +44,61 @@
       .tabs button{flex:1;height:30px;border:0;border-radius:8px;background:transparent;font:inherit;font-size:12px;font-weight:700;
         color:#64748b;cursor:pointer}
       .tabs button.on{background:#fff;color:#4338ca;box-shadow:0 1px 4px rgba(15,23,42,.12)}
+      .tabs button{position:relative;font-size:11.5px}
+      .tbadge{display:none;position:absolute;top:1px;left:4px;min-width:14px;height:14px;border-radius:7px;background:#dc2626;
+        color:#fff;font-size:9px;font-weight:800;line-height:14px;padding:0 3px;text-align:center}
+      .tbadge.on{display:inline-block}
+
+      /* ---- Trace viewer ---- */
+      .trace-view{display:flex;flex-direction:column;gap:7px;height:100%}
+      .tv-bar{display:flex;gap:5px;flex-wrap:wrap}
+      .tv-pill{font-size:10.5px;padding:2px 8px;border-radius:999px;background:#f1f5f9;color:#475569;font-weight:700}
+      .tv-pill.bad{background:#fee2e2;color:#b91c1c}
+      .tv-pill.warn{background:#fef3c7;color:#b45309}
+      .tv-tools{display:flex;gap:5px;align-items:center}
+      .tv-tools select,.tv-tools input{height:27px;border:1px solid #e2e8f0;border-radius:8px;font:inherit;font-size:11px;padding:0 6px;background:#fff;color:#1f2937}
+      .tv-tools select{max-width:96px}
+      .tv-tools input{flex:1;min-width:0}
+      .tv-b{height:27px;padding:0 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#4338ca;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
+      .tv-b:hover{background:#eef2ff}
+      .tv-b.bad{color:#b91c1c;border-color:#fecaca}
+      .tv-b.bad:hover{background:#fef2f2}
+      .tv-fails{display:flex;gap:4px;flex-wrap:wrap}
+      .tv-fail-title{font-size:10.5px;color:#b91c1c;font-weight:800;width:100%}
+      .tv-chip{font-size:10px;padding:2px 7px;border-radius:999px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;cursor:pointer;font:inherit;font-size:10px}
+      .tv-chip:hover{background:#fee2e2}
+      .tv-feed{flex:1;overflow-y:auto;min-height:180px;max-height:300px;display:flex;flex-direction:column;gap:3px;
+        border:1px solid #eef2f7;border-radius:10px;padding:6px;background:#fcfdfe}
+      .tv-feed::-webkit-scrollbar{width:6px}
+      .tv-feed::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
+      .tv-row{border-radius:7px;padding:3px 6px;background:#fff;border:1px solid #f1f5f9;font-size:10.5px}
+      .tv-row.error{border-color:#fecaca;background:#fff5f5}
+      .tv-row.warn{border-color:#fde68a;background:#fffcf2}
+      .tv-row.debug{opacity:.82}
+      .tv-h{display:flex;gap:5px;align-items:baseline;cursor:pointer;flex-wrap:wrap}
+      .tv-row:not(:has(.tv-d)) .tv-h{cursor:default}
+      .tv-time{color:#94a3b8;font-size:9.5px;direction:ltr;flex:none}
+      .tv-ms{color:#6366f1;font-weight:800;font-size:9.5px;direction:ltr;flex:none}
+      .tv-stage{font-size:9px;font-weight:800;border-radius:4px;padding:0 4px;background:#eef2ff;color:#4338ca;flex:none}
+      .tv-stage.s-ADD{background:#dcfce7;color:#15803d}
+      .tv-stage.s-PAY{background:#ede9fe;color:#6d28d9}
+      .tv-stage.s-DETECT{background:#fef3c7;color:#b45309}
+      .tv-stage.s-NET{background:#e0f2fe;color:#0369a1}
+      .tv-stage.s-WATCH{background:#f1f5f9;color:#475569}
+      .tv-code{font-size:9px;font-weight:800;color:#b91c1c;background:#fee2e2;border-radius:4px;padding:0 4px;direction:ltr;flex:none}
+      .tv-msg{flex:1;min-width:0;overflow-wrap:anywhere;color:#1f2937}
+      .tv-d{display:none;margin-top:4px;padding-top:4px;border-top:1px dashed #e2e8f0}
+      .tv-row.open .tv-d{display:block}
+      .tv-json{margin:2px 0;padding:4px 6px;background:#0f172a;color:#cbd5e1;border-radius:6px;font-size:9.5px;
+        direction:ltr;text-align:left;overflow-x:auto;max-height:110px;font-family:ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
+      .tv-diag{margin-top:3px}
+      .tv-diag>b{font-size:9.5px;color:#64748b}
+      .tv-kv{display:flex;gap:4px;align-items:flex-start;margin-top:3px}
+      .tv-k{font-size:9px;font-weight:800;color:#4338ca;background:#eef2ff;border-radius:4px;padding:0 4px;flex:none;direction:ltr}
+      .tv-steps{margin-top:3px;display:flex;flex-direction:column;gap:2px}
+      .tv-step{display:flex;gap:5px;align-items:baseline;font-size:9.5px;color:#475569;flex-wrap:wrap}
+      .tv-empty{text-align:center;color:#94a3b8;font-size:11px;padding:22px 0}
+      .tv-foot{font-size:9px;color:#94a3b8;line-height:1.7;direction:rtl}
 
       .search{position:relative;margin-bottom:8px}
       .search input{width:100%;height:32px;padding:0 30px 0 10px;border:1px solid #e2e8f0;border-radius:9px;font:inherit;font-size:12px;color:#1f2937}
@@ -144,6 +199,7 @@
           <button data-tab="products" class="on">محصولات</button>
           <button data-tab="pay">پرداخت</button>
           <button data-tab="adv">پیشرفته</button>
+          <button data-tab="trace">لاگ حرفه‌ای <b id="traceBadge" class="tbadge"></b></button>
         </div>
 
         <!-- محصولات -->
@@ -198,6 +254,15 @@
             <span>فاصله چک صفحه (ms)</span><input type="number" id="pageInterval" min="2000" max="120000" step="500">
             <span>سقف صفحه در دقیقه</span><input type="number" id="pageMaxPerMinute" min="1" max="30">
           </div>
+          <div class="sec">سرعت خرید (هدف: زیر ۲ ثانیه)</div>
+          <div class="set" style="padding:0;background:none;border:0">
+            <span>بودجه‌ی هر تلاش افزودن (ms)</span><input type="number" id="addTimeout" min="600" max="4000" step="100">
+            <span>انتظار ریدایرکت خودکار (ms)</span><input type="number" id="navWait" min="200" max="3000" step="100">
+            <span>انتظار فعال شدن دکمه‌ی پرداخت (ms)</span><input type="number" id="payBtnWait" min="800" max="8000" step="100">
+            <span>انتظار ریدایرکت به بانک (ms)</span><input type="number" id="payRedirectWait" min="1000" max="8000" step="100">
+            <span>اگر درگاه دلخواه نبود</span><input type="text" id="gatewayStrategy" placeholder="first | random">
+            <span>ثبت لاگ حرفه‌ای</span><label class="sw"><input type="checkbox" id="traceEnabled"><span></span></label>
+          </div>
           <details>
             <summary>تنظیمات حرفه‌ای (آدرس‌ها و انتخابگرها)</summary>
             <div class="set">
@@ -209,6 +274,10 @@
             </div>
           </details>
           <div class="foot">تنظیمات به‌طور خودکار ذخیره می‌شود.</div>
+        </div>
+
+        <div data-pane="trace" class="hidden">
+          <div id="traceMount"></div>
         </div>
 
         <button class="go" id="go" disabled>▶ شروع پایش</button>
@@ -273,13 +342,41 @@
     });
 
     // ---------- تب‌ها ----------
+    let traceViewer = null;
+    const ensureTrace = () => {
+      if (traceViewer) return traceViewer;
+      if (!K.createTraceViewer) return null;
+      const mount = root.querySelector('#traceMount');
+      if (!mount) return null;
+      traceViewer = K.createTraceViewer(mount);
+      return traceViewer;
+    };
+
     root.querySelectorAll('#tabs button').forEach((b) => {
       b.onclick = () => {
         state.tab = b.dataset.tab;
         root.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
         root.querySelectorAll('[data-pane]').forEach((p) => p.classList.toggle('hidden', p.dataset.pane !== state.tab));
+        if (state.tab === 'trace') {
+          ensureTrace()?.refresh?.();
+          const bd = root.querySelector('#traceBadge');
+          if (bd) bd.classList.remove('on');
+        }
       };
     });
+
+    // نشانگر خطا روی تب لاگ حرفه‌ای
+    const badge = root.querySelector('#traceBadge');
+    let badgeT = null;
+    if (K.trace) {
+      K.trace.onRecord((rec) => {
+        if (rec.lv !== 'error') return;
+        if (badgeT) return;
+        badgeT = setTimeout(() => { badgeT = null; }, 400);
+        badge.textContent = '';
+        badge.classList.add('on');
+      });
+    }
 
     // ---------- کمک‌تابع ----------
     const fa = K.fa;
@@ -480,8 +577,11 @@
       safe('keepAwake', (e) => { e.checked = !!c.keepAwake; });
       safe('jitter', (e) => { e.checked = !!c.jitter; });
       safe('pageFallback', (e) => { e.checked = !!c.pageFallback; });
-      ['interval', 'minGap', 'maxPerMinute', 'timeout', 'breaker', 'longCooldown', 'pageInterval', 'pageMaxPerMinute', 'payRetries']
+      safe('traceEnabled', (e) => { e.checked = !!c.traceEnabled; });
+      ['interval', 'minGap', 'maxPerMinute', 'timeout', 'breaker', 'longCooldown', 'pageInterval', 'pageMaxPerMinute', 'payRetries',
+       'addTimeout', 'navWait', 'payBtnWait', 'payRedirectWait']
         .forEach((id) => safe(id, (e) => { if (document.activeElement !== e) e.value = c[id]; }));
+      safe('gatewayStrategy', (e) => { if (document.activeElement !== e) e.value = c.gatewayStrategy || 'first'; });
       safe('armTtl', (e) => { if (document.activeElement !== e) e.value = Math.round((Number(c.armTtl) || 180000) / 1000); });
       ['apiUrl', 'pageUrl', 'cardSelector', 'addMethod', 'gateways'].forEach((id) => safe(id, (e) => { if (document.activeElement !== e) e.value = c[id] ?? ''; }));
       renderGateways();
@@ -506,6 +606,12 @@
     bindNum('pageInterval', 'pageInterval');
     bindNum('pageMaxPerMinute', 'pageMaxPerMinute');
     bindNum('payRetries', 'payRetries');
+    bindNum('addTimeout', 'addTimeout');
+    bindNum('navWait', 'navWait');
+    bindNum('payBtnWait', 'payBtnWait');
+    bindNum('payRedirectWait', 'payRedirectWait');
+    bindText('gatewayStrategy', 'gatewayStrategy');
+    bindBool('traceEnabled', 'traceEnabled');
     bindText('apiUrl', 'apiUrl');
     bindText('pageUrl', 'pageUrl');
     bindText('cardSelector', 'cardSelector');
@@ -651,6 +757,8 @@
     const api = {
       destroy() {
         offs.forEach((f) => { try { f(); } catch (e) { /* noop */ } });
+        try { traceViewer?.destroy?.(); } catch (e) { /* noop */ }
+        traceViewer = null;
         mo.disconnect();
         host.remove();
       },

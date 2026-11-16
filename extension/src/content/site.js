@@ -232,40 +232,158 @@
     }
   };
 
-  /** افزودن محصول به سبد: ابتدا Livewire، بعد کلیک؛ خروجی: آیا «درخواست» فرستاده شد */
-  S.addToCart = async (product, { guard } = {}) => {
-    const mode = K.config.addMethod || 'auto';
+  /**
+   * افزودن به سبد — نسخه‌ی سریع و مبتنی بر رویداد.
+   *
+   * درس گرفته‌شده از لاگ واقعی: انتظارِ DOM (`product-selected`) هرگز پر
+   * نمی‌شد و هر تلاش ۳.۵ ثانیه تلف می‌کرد. راه درست، گوش دادن به پاسخ
+   * شبکه‌ی Livewire است که در چند صد میلی‌ثانیه می‌رسد.
+   *
+   * خروجی: { sent, method, wait } که wait تابع انتظار برای نتیجه است.
+   */
+  S.addToCart = async (product, { onEvent } = {}) => {
     const el = S.cardById(product.id) || product.el;
-    if (!el) return { ok: false, reason: 'کارت محصول پیدا نشد' };
+    if (!el) return { sent: false, reason: 'کارت محصول پیدا نشد', code: 'ADD_NO_ELEMENT' };
 
     const sel = S.selectors();
     const addBtn = el.querySelector(sel.addBtn);
 
+    // ⚠️ درس گرفته‌شده از سایت واقعی:
+    //   wire:snapshot روی صفحه «کهنه» است و ممکن است هنوز ناموجود نشان دهد،
+    //   در حالی که API همین لحظه می‌گوید موجود است. پس هرگز بر اساس
+    //   snapshot تصمیم به «نپذیرفتن» نمی‌گیریم؛ سعی می‌کنیم و نتیجه را
+    //   از پاسخ سرور/شبکه می‌گیریم. فقط اگر هیچ روشی در دسترس نبود، رد می‌کنیم.
+    const domSays = S.statusFromDom(el);
+
+    const mode = K.config.addMethod || 'auto';
+    const net = g.__KVT_NET__;
+    const t0 = performance.now();
+
+    // --- استراتژی ۱: Livewire $call (سریع‌ترین و مطمئن‌ترین) ---
     if (mode !== 'click') {
-      const w = S.wireOf(el);
-      if (w && typeof w.$call === 'function') {
-        try {
-          const p = w.$call('add');
-          if (p && typeof p.then === 'function') p.catch(() => {});
-          return { ok: true, via: 'wire', mode };
-        } catch (e) { /* می‌رود سراغ کلیک */ }
+      const wire = S.wireOf(el);
+      if (wire && typeof wire.$call === 'function') {
+        let promise = null;
+        try { promise = wire.$call('add'); } catch (e) {
+          if (onEvent) onEvent({ type: 'add-throw', err: String(e && e.message || e) });
+        }
+        if (promise) {
+          promise.then((res) => {
+            if (onEvent) onEvent({ type: 'add-resolved', ms: Math.round(performance.now() - t0), res });
+          }).catch((e) => {
+            if (onEvent) onEvent({ type: 'add-rejected', ms: Math.round(performance.now() - t0), err: String(e && e.message || e) });
+          });
+          return { sent: true, method: 'wire', promise, el, wait: makeWaiter(el, promise, t0, net) };
+        }
       }
     }
+
+    // --- استراتژی ۲: کلیک واقعی ماوس ---
     if (addBtn) {
       addBtn.classList.remove('d-none');
       addBtn.disabled = false;
       S.click(addBtn);
-      return { ok: true, via: 'click', mode };
+      if (onEvent) onEvent({ type: 'add-click', ms: Math.round(performance.now() - t0) });
+      return { sent: true, method: 'click', el, wait: makeWaiter(el, null, t0, net) };
     }
-    return { ok: false, reason: 'دکمه‌ی افزودن پیدا نشد' };
+
+    // --- استراتژی ۳: آخرین تلاش، setSelected روی کامپوننت ---
+    const wire = S.wireOf(el);
+    if (wire && typeof wire.$set === 'function') {
+      try {
+        wire.$set('selected', true);
+        return { sent: true, method: 'set', el, wait: makeWaiter(el, null, t0, net) };
+      } catch (e) { /* noop */ }
+    }
+
+    return {
+      sent: false,
+      reason: 'دکمه/کامپوننت افزودن پیدا نشد',
+      code: 'ADD_NO_METHOD',
+      status: domSays
+    };
+  };
+
+  /**
+   * انتظار برای نتیجه — هر کدام اول رسید:
+   *   ۱) ریدایرکت به درگاه (قوی‌ترین نشانه)
+   *   ۲) پاسخ Livewire با کد 4xx/5xx (خطای قطعی)
+   *   ۳) نشانه‌ی DOM (product-selected)
+   *   ۴) تغییر صفحه
+   */
+  function makeWaiter(el, promise, t0, net) {
+    const startLen = net ? net.queue.length : 0;
+    const startPath = location.pathname;
+
+    return async function wait(timeoutMs) {
+      const deadline = Date.now() + timeoutMs;
+      let promiseResult = null;
+      let promiseError = null;
+      const p = promise ? promise.then((r) => { promiseResult = r; }, (e) => { promiseError = e; }) : Promise.resolve();
+
+      while (Date.now() < deadline) {
+        // ۱) ریدایرکت یا ترک صفحه
+        if (K.store.get('navigating', false)) {
+          return { ok: true, how: 'navigating', ms: Math.round(performance.now() - t0), method: promiseResult?.method };
+        }
+        if (location.pathname !== startPath) {
+          return { ok: true, how: 'navigated', path: location.pathname, ms: Math.round(performance.now() - t0) };
+        }
+
+        // ۲) پاسخ شبکه‌ی مرتبط
+        if (net) {
+          const fresh = net.queue.slice(startLen);
+          for (const r of fresh) {
+            if (r.redirect) {
+              return { ok: true, how: 'livewire-redirect', redirect: r.redirect, status: r.status, ms: Math.round(performance.now() - t0) };
+            }
+            if (r.kind === 'livewire' && r.body && /add|select/i.test(r.body)) {
+              if (r.status >= 400) {
+                return { ok: false, how: 'server-error', status: r.status, ms: Math.round(performance.now() - t0), body: r.body };
+              }
+              if (r.status === 200 && r.phase === 'xhr') {
+                return { ok: true, how: 'livewire-200', status: 200, calls: r.calls, ms: Math.round(performance.now() - t0) };
+              }
+            }
+          }
+        }
+
+        // ۳) نشانه‌ی DOM (سریع، بدون querySelector سنگین)
+        if (el && el.isConnected && el.querySelector('.product-selected')) {
+          return { ok: true, how: 'dom-selected', ms: Math.round(performance.now() - t0) };
+        }
+
+        // ۴) خطای Livewire (اسنپ‌شات خود کامپوننت)
+        if (promiseError) {
+          return { ok: false, how: 'promise-error', err: String(promiseError && promiseError.message || promiseError), status: promiseError?.status, ms: Math.round(performance.now() - t0) };
+        }
+
+        await K.sleep(25);   // بازرسی سریع: هر ۲۵ms
+      }
+
+      // مهلت تمام شد ولی promise پاسخ داده بود؟
+      if (promiseResult) {
+        return { ok: true, how: 'promise-resolved', res: promiseResult, ms: Math.round(performance.now() - t0) };
+      }
+      return { ok: false, how: 'timeout', ms: Math.round(performance.now() - t0), code: 'ADD_TIMEOUT' };
+    };
+  }
+
+  /** آیا این صفحه پرداخت را نشان می‌دهد؟ (نه فقط path — شاید effect ریدایرکت) */
+  S.isPaymentRendered = () => {
+    if (S.paymentPage()) return true;
+    try {
+      return !!document.querySelector('[wire\\:click="next()"]')
+        || !!document.querySelector('[wire\\:click*="setGateway("]');
+    } catch (e) { return false; }
   };
 
   /** علامت‌های موفقیت افزودن به سبد */
   S.addedSignals = (el) => {
-    const sel = S.selectors();
-    if (location.pathname.startsWith('/esale/payment')) return true;
+    if (S.isPaymentRendered()) return true;
     if (!el) return false;
-    if (el.querySelector('.' + sel.selectedClass)) return true;
+    const sel = S.selectors();
+    try { if (el.querySelector('.' + sel.selectedClass)) return true; } catch (e) { /* noop */ }
     const w = S.wireOf(el);
     try { if (w && w.$get && w.$get('selected') === true) return true; } catch (e) { /* noop */ }
     return false;
@@ -279,17 +397,52 @@
     document.querySelector('dialog#livewire-error')?.close?.();
   };
 
-  /** در صفحه‌ی پرداخت: دکمه‌ی یک درگاه */
+  /** در صفحه‌ی پرداخت: لیست همه‌ی دکمه‌های درگاه (داینامیک — کلیدها ثابت نیستند) */
+  S.gatewayButtons = () => {
+    const out = [];
+    const seen = new Set();
+    const add = (el) => {
+      if (!el || seen.has(el)) return;
+      const key = S.gatewayKeyFromButton(el);
+      if (!key) return;
+      seen.add(el);
+      out.push({ el, key, name: S.norm(el.textContent).slice(0, 40) || key });
+    };
+    // مسیر اصلی: هر المانی که wire:click آن setGateway(...) دارد
+    try {
+      document.querySelectorAll('[wire\\:click*="setGateway("]').forEach(add);
+    } catch (e) { /* noop */ }
+    // فالبک‌ها برای پیاده‌سازی‌های دیگر
+    try { document.querySelectorAll('[data-gateway]').forEach(add); } catch (e) { /* noop */ }
+    if (!out.length) {
+      try {
+        document.querySelectorAll('button, label, .gateway, .gw-item, [role="radio"]').forEach((el) => {
+          const key = S.gatewayKeyFromButton(el);
+          if (key) add(el);
+        });
+      } catch (e) { /* noop */ }
+    }
+    return out;
+  };
+
+  /** پیدا کردن دکمه‌ی درگاه با کلید (اگر باشد) */
   S.gatewayButton = (key) => {
     if (!key) return null;
-    const sels = [
-      `[wire\\:click="setGateway('${key}')"]`,
-      `[wire\\:click*="setGateway('${key}')"]`,
-      `[data-gateway="${key}"]`,
-      `[value="${key}"]`
-    ];
-    for (const s of sels) { try { const el = document.querySelector(s); if (el) return el; } catch (e) { /* noop */ } }
-    return null;
+    const list = S.gatewayButtons();
+    const hit = list.find((g) => g.key === key);
+    return hit ? hit.el : null;
+  };
+
+  /** انتخاب درگاه: کلید مشخص؛ اگر نبود، «همان اولی» یا تصادفی — هدف سرعت است */
+  S.pickGateway = (preferred, strategy = 'first') => {
+    const list = S.gatewayButtons();
+    if (!list.length) return null;
+    if (preferred) {
+      const hit = list.find((g) => g.key === preferred);
+      if (hit) return hit;
+    }
+    if (strategy === 'random') return list[Math.floor(Math.random() * list.length)];
+    return list[0];
   };
 
   S.gatewayKeyFromButton = (el) => {

@@ -92,6 +92,27 @@
     </section>
 
     <section class="card">
+      <h2>سرعت خرید (هدف: زیر ۲ ثانیه)</h2>
+      <p class="muted">این مقادیر تعیین می‌کنند افزونه چقدر صبر کند تا سبد/درگاه/پرداخت آماده شود. کمتر = سریع‌تر، ولی ممکن است در اینترنت کند به نتیجه نرسد.</p>
+      <label class="field"><span>بودجه‌ی هر تلاش افزودن (ms)</span>
+        <input type="number" data-key="addTimeout" min="600" max="4000" step="100">
+      </label>
+      <label class="field"><span>انتظار ریدایرکت خودکار Livewire (ms)</span>
+        <input type="number" data-key="navWait" min="200" max="3000" step="100">
+      </label>
+      <label class="field"><span>انتظار فعال شدن دکمه‌ی پرداخت (ms)</span>
+        <input type="number" data-key="payBtnWait" min="800" max="8000" step="100">
+      </label>
+      <label class="field"><span>انتظار ریدایرکت به بانک (ms)</span>
+        <input type="number" data-key="payRedirectWait" min="1000" max="8000" step="100">
+      </label>
+      <label class="field"><span>اگر درگاه دلخواه در صفحه نبود</span>
+        <input type="text" data-key="gatewayStrategy" placeholder="first | random">
+      </label>
+      <label class="switch"><input type="checkbox" data-key="traceEnabled"><i></i><span>ثبت لاگ حرفه‌ای (برای عیب‌یابی)</span></label>
+    </section>
+
+    <section class="card">
       <h2>رفتار و رابط</h2>
       <label class="switch"><input type="checkbox" data-key="focusOnHit"><i></i><span>آوردن تب به جلو هنگام موجود شدن</span></label>
       <label class="switch"><input type="checkbox" data-key="sound"><i></i><span>صدا</span></label>
@@ -126,6 +147,27 @@
       <p class="muted small">تنظیمات به‌صورت خودکار ذخیره می‌شود. تغییرات بلافاصله در تب‌های باز اعمال می‌شوند.</p>
     </section>
   </div>
+
+  <section class="card note">
+    <h2>لاگ حرفه‌ای (تب «لاگ حرفه‌ای» در پنل)</h2>
+    <p class="muted">جدا از لاگ عادی کاربر. هر اقدام ربات با مرحله (پایش/تشخیص/سبد/ناوبری/پرداخت/شبکه)، مدت‌زمان و کد خطا ثبت می‌شود.</p>
+    <ol>
+      <li>روی هر ردیف کلیک کنید تا داده‌ی تشخیصی و مراحل باز شود.</li>
+      <li>«دلایل شکست» بالای لیست، کدهای خطا را گروه‌بندی می‌کند (مثلاً <code>ADD_NOT_SELECTED ×۳</code>).</li>
+      <li>دکمه‌ی <b>JSON</b> همه‌ی لاگ‌ها را برای تحلیل/توسعه دانلود می‌کند.</li>
+      <li>دکمه‌ی <b>کپی</b> متن خوانا برای ارسال به پشتیبانی می‌دهد.</li>
+    </ol>
+    <h2 style="margin-top:16px">کدهای خطای رایج</h2>
+    <p class="muted small">
+      <code>ADD_NOT_SELECTED</code> سرور محصول را انتخاب نکرد ·
+      <code>ADD_NO_METHOD</code> دکمه/کامپوننت افزودن پیدا نشد ·
+      <code>ADD_SERVER_429</code> محدودیت نرخ ·
+      <code>ADD_SERVER_419</code> نشست منقضی ·
+      <code>PAY_NO_GWBTN</code> دکمه‌ی درگاه نبود ·
+      <code>PAY_NO_PAYBTN</code> دکمه‌ی پرداخت فعال نشد ·
+      <code>PAY_NO_NAV</code> ریدایرکت به بانک انجام نشد
+    </p>
+  </section>
 
   <section class="card note">
     <h2>چطور کار می‌کند؟</h2>

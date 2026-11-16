@@ -169,6 +169,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             return sendResponse({ ok: false });
           }
 
+          // ---------- لاگ حرفه‌ای ----------
+          case 'trace:append': {
+            const { entries = [], session = '' } = msg.payload || {};
+            if (!entries.length) return sendResponse({ ok: true, n: 0 });
+            try { await appendTrace(session, entries); } catch (e) { /* noop */ }
+            return sendResponse({ ok: true, n: entries.length });
+          }
+
+          case 'trace:read': {
+            const all = await readTrace(msg.payload?.session || null);
+            return sendResponse(all);
+          }
+
+          case 'trace:clear': {
+            await chrome.storage.local.remove(['trace']);
+            return sendResponse({ ok: true });
+          }
+
           case 'monitor:claim':
             templateKeepAlive(true);
             return sendResponse({ ok: true });
@@ -210,6 +228,53 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 });
+
+// ---------- ذخیره‌سازی Trace (حلقه، مقاوم به حجم) ----------
+const TRACE_KEY = 'trace';
+const TRACE_MAX = 6000;      // سقف رکورد کلی
+const TRACE_SESSIONS = 12;   // تعداد نشست‌های نگه‌داری‌شده
+
+async function readTrace(session) {
+  const obj = await chrome.storage.local.get(TRACE_KEY);
+  const db = obj[TRACE_KEY] || { sessions: {}, order: [] };
+  if (session) {
+    return { session, entries: (db.sessions[session] || []).slice() };
+  }
+  return db;
+}
+
+async function appendTrace(session, entries) {
+  if (!session || !entries?.length) return;
+  const obj = await chrome.storage.local.get(TRACE_KEY);
+  const db = obj[TRACE_KEY] || { sessions: {}, order: [] };
+  if (!db.sessions[session]) {
+    db.sessions[session] = [];
+    db.order.push(session);
+    // نگه‌داری فقط آخرین نشست‌ها
+    while (db.order.length > TRACE_SESSIONS) {
+      const old = db.order.shift();
+      delete db.sessions[old];
+    }
+  }
+  db.sessions[session].push(...entries);
+  // سقف کلی: از قدیمی‌ترین‌ها بزن
+  let total = db.order.reduce((a, s) => a + (db.sessions[s]?.length || 0), 0);
+  while (total > TRACE_MAX && db.order.length) {
+    const first = db.order[0];
+    const arr = db.sessions[first];
+    if (!arr) { db.order.shift(); continue; }
+    const over = total - TRACE_MAX;
+    if (arr.length <= over) {
+      delete db.sessions[first];
+      db.order.shift();
+      total -= arr.length;
+    } else {
+      arr.splice(0, over);
+      total -= over;
+    }
+  }
+  await chrome.storage.local.set({ [TRACE_KEY]: db });
+}
 
 async function hasAllSites() {
   try { return await chrome.permissions.contains({ origins: ['*://*/*'] }); }

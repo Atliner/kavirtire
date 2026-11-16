@@ -50,27 +50,37 @@
   // ---------- دکمه‌های شناور «خرید فوری» ----------
   const overlay = {
     els: new Map(),
+    lastStatus: new Map(),
     sync() {
       if (!K.config.overlays || !S.productsPage()) { this.clear(); return; }
       const cards = S.cards();
       const seen = new Set();
-      cards.forEach((card) => {
+      let changed = 0;
+      for (const card of cards) {
         const id = S.idOf(card);
-        if (!id) return;
+        if (!id) continue;
         seen.add(id);
         let el = this.els.get(id);
         if (!el || !el.isConnected || el.parentElement !== card) {
           el = this.make(card, id);
           this.els.set(id, el);
+          this.lastStatus.delete(id);
         }
-        const st = S.status(card);
-        el.dataset.avail = st.available ? '1' : '0';
-        el.textContent = st.available ? '⚡ خرید فوری' : '⏱ پایش';
-        el.title = st.available
+        // فقط وقتی وضعیت تغییر کرده، DOM را دست بزن (کارایی)
+        const known = K.engineState?.products?.[id];
+        const avail = known ? !!known.available : S.status(card).available;
+        const prev = this.lastStatus.get(id);
+        if (prev === avail) continue;
+        this.lastStatus.set(id, avail);
+        changed++;
+        el.dataset.avail = avail ? '1' : '0';
+        el.textContent = avail ? '⚡ خرید فوری' : '⏱ پایش';
+        el.title = avail
           ? 'همین حالا به سبد اضافه کن و به درگاه برو'
           : 'این محصول ناموجود است؛ با کلیک، به لیست پایش اضافه می‌شود';
-      });
-      [...this.els.keys()].forEach((id) => { if (!seen.has(id)) { this.els.get(id)?.remove(); this.els.delete(id); } });
+      }
+      [...this.els.keys()].forEach((id) => { if (!seen.has(id)) { this.els.get(id)?.remove(); this.els.delete(id); this.lastStatus.delete(id); } });
+      return changed;
     },
     make(card, id) {
       const el = document.createElement('button');
@@ -96,7 +106,7 @@
       card.appendChild(el);
       return el;
     },
-    clear() { this.els.forEach((el) => el.remove()); this.els.clear(); }
+    clear() { this.els.forEach((el) => el.remove()); this.els.clear(); this.lastStatus.clear(); }
   };
 
   // ---------- پنل ----------
@@ -117,6 +127,29 @@
   function hidePanel() {
     K.applyConfig({ panelHidden: true });
     K.emit('panel-hidden');
+  }
+
+  // ---------- پل شبکه → Trace ----------
+  function watchNetwork() {
+    const net = g.__KVT_NET__;
+    const T = K.trace;
+    if (!net || !T) return;
+    net.on((rec) => {
+      if (!K.config.traceNet) return;
+      // فقط رکوردهای مهم (نه هر درخواست تصویر/فونت)
+      if (rec.kind === 'other') return;
+      const lvl = rec.status >= 400 || rec.err ? 'warn' : 'debug';
+      T.log('NET', lvl, `${rec.method || 'GET'} ${shortUrl(rec.url)} → ${rec.status || rec.err || '?'}`,
+        { status: rec.status, ms: rec.ms, redirect: rec.redirect || null, calls: rec.calls || null,
+          body: rec.body ? String(rec.body).slice(0, 400) : null },
+        rec.status === 429 ? 'WATCH_429' : (rec.status === 419 ? 'WATCH_419' : null));
+    });
+  }
+  function shortUrl(u) {
+    try {
+      const x = new URL(u, location.href);
+      return x.pathname.length > 48 ? x.pathname.slice(0, 48) + '…' : x.pathname;
+    } catch (e) { return String(u).slice(0, 48); }
   }
 
   // ---------- خطاهای شبکه در سطح ریسک ----------
@@ -184,6 +217,9 @@
 
   // ---------- رویدادها ----------
   K.on('arm', ({ id }) => { K.store.set('cartIds', id ? [String(id)] : []); });
+  K.on('purchase', (ev) => {
+    if (ev && ev.tid) K.trace?.info('ADD', `وضعیت خرید: ${ev.phase}`, ev);
+  });
 
   K.on('run', ({ running }) => {
     keepAwake(running);
@@ -204,6 +240,7 @@
       K.applyConfig({ selected: [...new Set([...((K.config.selected || []).map(String)), String(id)])] });
     }
     eng.buyNow([String(id)]);
+    K.trace?.info('ADD', 'خرید فوری دستی (⚡)', { id });
   });
 
   K.on('panel-hidden', () => {
@@ -221,6 +258,7 @@
   });
 
   K.on('config', () => { overlay.sync(); });
+  K.on('data', () => { overlay.sync(); });
 
   // Livewire navigation برای SPA
   document.addEventListener('livewire:navigated', () => {
@@ -279,6 +317,7 @@
     K.log('افزونه‌ی خرید سریع کویرتایر فعال شد (v' + K.version + ')', 'ok');
     mount();
     watchPageRisks();
+    watchNetwork();
     // اصلاح خودکار وضعیت روی خطای Livewire (۴۱۹ نشست منقضی / ۴۲۹)
     K.watchLivewireErrors((ev) => {
       if (ev.type === 'lw-fail') K.emit('lw-fail', { status: ev.status });

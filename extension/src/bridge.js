@@ -10,7 +10,7 @@
   'use strict';
 
   const TAG = '__kvt_fastbuy__';
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   let port = null;
   let heartbeat = null;
 
@@ -60,7 +60,8 @@
     'config:get', 'config:set', 'config:reset', 'config:open',
     'notify', 'log', 'tab:info', 'tab:focus', 'tab:gateway',
     'monitor:claim', 'monitor:release', 'monitor:state',
-    'open:url', 'badge'
+    'open:url', 'badge',
+    'trace:append', 'trace:read', 'trace:clear', 'trace:export'
   ]);
 
   async function handle(method, payload) {

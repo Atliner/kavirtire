@@ -40,11 +40,16 @@
     buyIfAlreadyAvailable: false, // اگر محصول از قبل موجود بود هم بخرد (نه فقط لحظه‌ی موجود شدن)
     autoPay: true,           // انتخاب درگاه و تایید پرداخت به‌صورت خودکار
     armTtl: 180000,          // اعتبار «علامت خرید» روی صفحه‌ی پرداخت (ms)
-    gateway: 'refahk',
     gateways: '',            // بازنویسی لیست درگاه‌ها: "key:نام, key:نام"
     payRetries: 3,
     paymentUrl: '/esale/payment',
     cartItemSelector: '.checkout-item',
+    addTimeout: 1600,            // بودجه‌ی هر تلاش افزودن به سبد (ms) — هدف: زیر ۲ ثانیه
+    navWait: 900,                // صبر برای ریدایرکت خودکار Livewire (ms)
+    payBtnWait: 2500,            // سقف انتظار برای فعال شدن دکمه‌ی پرداخت (ms)
+    payRedirectWait: 3000,       // سقف انتظار برای ریدایرکت به بانک (ms)
+    gatewayStrategy: 'first',    // اگر درگاه تنظیم‌شده در صفحه نبود: first | random
+    gateway: 'refahk',
 
     // --- رفتار ---
     sound: true,
@@ -64,6 +69,11 @@
     pageUrl: '/esale/products',
     cardSelector: '.product[data-tire-id]',
     addMethod: 'auto',       // auto | wire | click
+
+    // --- لاگ حرفه‌ای (Trace) ---
+    traceEnabled: true,          // ثبت لاگ تخصصی
+    traceMax: 5000,              // حداکثر رکورد نگه‌داری‌شده
+    traceNet: true,              // ضبط درخواست/پاسخ‌های شبکه‌ی مرتبط
 
     // --- رابط کاربری ---
     panelPos: null,
@@ -117,7 +127,7 @@
   g.KVT_PRESETS = PRESETS;
   g.KVT_PSP_HOST_PATTERNS = PSP_HOST_PATTERNS;
   g.KVT_STORAGE_KEY = STORAGE_KEY;
-  g.KVT_VERSION = '1.0.0';
+  g.KVT_VERSION = '1.1.0';
 
   // ادغام امن: فقط کلیدهای شناخته‌شده، با نوع درست
   g.KVT_mergeConfig = function (base, patch) {

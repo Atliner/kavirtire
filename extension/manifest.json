@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "کویرتایر — خرید سریع",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "پایش سبک موجودی کویرتایر بدون رفرش مکرر، انتخاب محصول، افزودن به سبد و باز کردن سریع درگاه پرداخت.",
   "minimum_chrome_version": "111",
   "icons": {
@@ -46,6 +46,17 @@
         "*://*.kavirtire.ir/esale/*"
       ],
       "js": [
+        "src/content/net.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "*://kavirtire.ir/esale/*",
+        "*://*.kavirtire.ir/esale/*"
+      ],
+      "js": [
         "src/bridge.js"
       ],
       "run_at": "document_start",
@@ -59,11 +70,13 @@
       "js": [
         "src/shared/defaults.js",
         "src/content/core.js",
+        "src/content/trace.js",
         "src/content/guard.js",
         "src/content/site.js",
         "src/content/engine.js",
         "src/content/payment.js",
         "src/content/panel.js",
+        "src/content/trace-viewer.js",
         "src/content/main.js"
       ],
       "run_at": "document_idle",

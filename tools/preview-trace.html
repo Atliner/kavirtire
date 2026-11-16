@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>پیش‌نمایش لاگ حرفه‌ای — کویرتایر</title>
+<style>
+ *{box-sizing:border-box;margin:0;padding:0}
+ body{min-height:100vh;background:#0f172a;
+   background-image:radial-gradient(circle at 18% 8%,rgba(79,70,229,.34),transparent 46%),
+                    radial-gradient(circle at 86% 84%,rgba(37,99,235,.3),transparent 46%);
+   font-family:Vazirmatn,Tahoma,sans-serif}
+ .stage{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:26px 16px}
+ .cap{color:#cbd5e1;font-size:12.5px;text-align:center;line-height:2}
+ .cap b{color:#a5b4fc} .cap code{background:#1e293b;color:#a5b4fc;border-radius:5px;padding:1px 5px;font-size:11px}
+ 
+      :host{all:initial}
+      *{box-sizing:border-box;margin:0;padding:0}
+      .panel{width:352px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;direction:rtl;
+        font-family:Vazirmatn,Tahoma,"Segoe UI",sans-serif;font-size:13px;line-height:1.6;color:#1f2937;
+        background:#fff;border-radius:16px;box-shadow:0 18px 48px rgba(15,23,42,.26),0 0 0 1px rgba(15,23,42,.06);overflow:hidden}
+      .hd{flex:none;display:flex;align-items:center;gap:8px;padding:10px 12px;color:#fff;cursor:grab;user-select:none;
+        background:linear-gradient(135deg,#2563eb,#4f46e5)}
+      .hd:active{cursor:grabbing}
+      .hd .ttl{flex:1;font-weight:800;font-size:13.5px;letter-spacing:.1px}
+      .dot{width:9px;height:9px;border-radius:50%;background:#94a3b8;flex:none;transition:.2s}
+      .dot.run{background:#4ade80;box-shadow:0 0 0 0 rgba(74,222,128,.7);animation:pulse 1.4s infinite}
+      .dot.cool{background:#fbbf24}
+      @keyframes pulse{70%{box-shadow:0 0 0 8px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
+      .ib{width:25px;height:25px;border:0;border-radius:7px;background:rgba(255,255,255,.16);color:#fff;font-size:13px;cursor:pointer;
+        display:grid;place-items:center;line-height:1;flex:none}
+      .ib:hover{background:rgba(255,255,255,.32)}
+      .bd{padding:10px 12px 12px;overflow-y:auto;min-height:0}
+      .panel.closed .bd{display:none}
+      .bd::-webkit-scrollbar,.list::-webkit-scrollbar{width:6px}
+      .bd::-webkit-scrollbar-thumb,.list::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
+
+      .tabs{display:flex;gap:4px;background:#f1f5f9;border-radius:10px;padding:3px;margin-bottom:10px}
+      .tabs button{flex:1;height:30px;border:0;border-radius:8px;background:transparent;font:inherit;font-size:12px;font-weight:700;
+        color:#64748b;cursor:pointer}
+      .tabs button.on{background:#fff;color:#4338ca;box-shadow:0 1px 4px rgba(15,23,42,.12)}
+      .tabs button{position:relative;font-size:11.5px}
+      .tbadge{display:none;position:absolute;top:1px;left:4px;min-width:14px;height:14px;border-radius:7px;background:#dc2626;
+        color:#fff;font-size:9px;font-weight:800;line-height:14px;padding:0 3px;text-align:center}
+      .tbadge.on{display:inline-block}
+
+      /* ---- Trace viewer ---- */
+      .trace-view{display:flex;flex-direction:column;gap:7px;height:100%}
+      .tv-bar{display:flex;gap:5px;flex-wrap:wrap}
+      .tv-pill{font-size:10.5px;padding:2px 8px;border-radius:999px;background:#f1f5f9;color:#475569;font-weight:700}
+      .tv-pill.bad{background:#fee2e2;color:#b91c1c}
+      .tv-pill.warn{background:#fef3c7;color:#b45309}
+      .tv-tools{display:flex;gap:5px;align-items:center}
+      .tv-tools select,.tv-tools input{height:27px;border:1px solid #e2e8f0;border-radius:8px;font:inherit;font-size:11px;padding:0 6px;background:#fff;color:#1f2937}
+      .tv-tools select{max-width:96px}
+      .tv-tools input{flex:1;min-width:0}
+      .tv-b{height:27px;padding:0 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#4338ca;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
+      .tv-b:hover{background:#eef2ff}
+      .tv-b.bad{color:#b91c1c;border-color:#fecaca}
+      .tv-b.bad:hover{background:#fef2f2}
+      .tv-fails{display:flex;gap:4px;flex-wrap:wrap}
+      .tv-fail-title{font-size:10.5px;color:#b91c1c;font-weight:800;width:100%}
+      .tv-chip{font-size:10px;padding:2px 7px;border-radius:999px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;cursor:pointer;font:inherit;font-size:10px}
+      .tv-chip:hover{background:#fee2e2}
+      .tv-feed{flex:1;overflow-y:auto;min-height:180px;max-height:300px;display:flex;flex-direction:column;gap:3px;
+        border:1px solid #eef2f7;border-radius:10px;padding:6px;background:#fcfdfe}
+      .tv-feed::-webkit-scrollbar{width:6px}
+      .tv-feed::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
+      .tv-row{border-radius:7px;padding:3px 6px;background:#fff;border:1px solid #f1f5f9;font-size:10.5px}
+      .tv-row.error{border-color:#fecaca;background:#fff5f5}
+      .tv-row.warn{border-color:#fde68a;background:#fffcf2}
+      .tv-row.debug{opacity:.82}
+      .tv-h{display:flex;gap:5px;align-items:baseline;cursor:pointer;flex-wrap:wrap}
+      .tv-row:not(:has(.tv-d)) .tv-h{cursor:default}
+      .tv-time{color:#94a3b8;font-size:9.5px;direction:ltr;flex:none}
+      .tv-ms{color:#6366f1;font-weight:800;font-size:9.5px;direction:ltr;flex:none}
+      .tv-stage{font-size:9px;font-weight:800;border-radius:4px;padding:0 4px;background:#eef2ff;color:#4338ca;flex:none}
+      .tv-stage.s-ADD{background:#dcfce7;color:#15803d}
+      .tv-stage.s-PAY{background:#ede9fe;color:#6d28d9}
+      .tv-stage.s-DETECT{background:#fef3c7;color:#b45309}
+      .tv-stage.s-NET{background:#e0f2fe;color:#0369a1}
+      .tv-stage.s-WATCH{background:#f1f5f9;color:#475569}
+      .tv-code{font-size:9px;font-weight:800;color:#b91c1c;background:#fee2e2;border-radius:4px;padding:0 4px;direction:ltr;flex:none}
+      .tv-msg{flex:1;min-width:0;overflow-wrap:anywhere;color:#1f2937}
+      .tv-d{display:none;margin-top:4px;padding-top:4px;border-top:1px dashed #e2e8f0}
+      .tv-row.open .tv-d{display:block}
+      .tv-json{margin:2px 0;padding:4px 6px;background:#0f172a;color:#cbd5e1;border-radius:6px;font-size:9.5px;
+        direction:ltr;text-align:left;overflow-x:auto;max-height:110px;font-family:ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
+      .tv-diag{margin-top:3px}
+      .tv-diag>b{font-size:9.5px;color:#64748b}
+      .tv-kv{display:flex;gap:4px;align-items:flex-start;margin-top:3px}
+      .tv-k{font-size:9px;font-weight:800;color:#4338ca;background:#eef2ff;border-radius:4px;padding:0 4px;flex:none;direction:ltr}
+      .tv-steps{margin-top:3px;display:flex;flex-direction:column;gap:2px}
+      .tv-step{display:flex;gap:5px;align-items:baseline;font-size:9.5px;color:#475569;flex-wrap:wrap}
+      .tv-empty{text-align:center;color:#94a3b8;font-size:11px;padding:22px 0}
+      .tv-foot{font-size:9px;color:#94a3b8;line-height:1.7;direction:rtl}
+
+      .search{position:relative;margin-bottom:8px}
+      .search input{width:100%;height:32px;padding:0 30px 0 10px;border:1px solid #e2e8f0;border-radius:9px;font:inherit;font-size:12px;color:#1f2937}
+      .search input:focus{outline:0;border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,.16)}
+      .search span{position:absolute;top:50%;right:9px;transform:translateY(-50%);color:#94a3b8;font-size:12px}
+
+      .tools{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+      .tools button{border:0;background:#eef2ff;color:#4338ca;font:inherit;font-size:11px;font-weight:700;padding:3px 8px;border-radius:7px;cursor:pointer}
+      .tools button:hover{background:#e0e7ff}
+      .tools .cnt{margin-right:auto;color:#64748b;font-size:11px}
+
+      .notice{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fffbeb;border:1px solid #fde68a;color:#92400e;
+        border-radius:9px;padding:6px 9px;font-size:11px;margin-bottom:6px}
+      .notice button{border:0;background:#f59e0b;color:#fff;border-radius:7px;padding:2px 8px;font:inherit;font-size:10.5px;font-weight:700;cursor:pointer}
+      .list{max-height:236px;overflow-y:auto;padding-left:2px;display:flex;flex-direction:column;gap:5px}
+      .row{display:flex;align-items:center;gap:8px;padding:7px 8px;border:1px solid #e8edf5;border-radius:10px;background:#fff;transition:.14s}
+      .row:hover{border-color:#c7d2fe;background:#fafbff}
+      .row.on{border-color:#818cf8;background:#eef2ff}
+      .chk{position:relative;width:16px;height:16px;flex:none;cursor:pointer}
+      .chk input{position:absolute;inset:0;opacity:0;cursor:pointer;margin:0}
+      .chk i{position:absolute;inset:0;border:1.6px solid #cbd5e1;border-radius:5px;background:#fff;display:grid;place-items:center;transition:.14s}
+      .chk i::after{content:"";width:8px;height:4px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) scale(0);transition:.14s;margin-top:-2px}
+      .chk input:checked + i{background:#4f46e5;border-color:#4f46e5}
+      .chk input:checked + i::after{transform:rotate(-45deg) scale(1)}
+      .nm{flex:1;min-width:0;font-weight:700;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .nm small{display:block;font-weight:500;font-size:11px;color:#64748b;direction:ltr;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .badge{flex:none;font-size:10.5px;padding:1px 7px;border-radius:999px;background:#f1f5f9;color:#64748b;white-space:nowrap}
+      .badge.on{background:#dcfce7;color:#15803d}.badge.off{background:#fee2e2;color:#b91c1c}.badge.ex{background:#fef3c7;color:#b45309}
+      .qb{flex:none;width:26px;height:26px;border:0;border-radius:8px;background:#eef2ff;color:#4338ca;font-size:13px;cursor:pointer;display:grid;place-items:center}
+      .qb:hover{background:#e0e7ff}
+      .qb:disabled{opacity:.35;cursor:not-allowed}
+      .pri{flex:none;display:flex;flex-direction:column;gap:1px}
+      .pri button{width:18px;height:15px;border:0;background:transparent;color:#94a3b8;font-size:9px;cursor:pointer;line-height:1;padding:0}
+      .pri button:hover{color:#4f46e5}
+      .empty{color:#94a3b8;font-size:12px;text-align:center;padding:16px 0}
+
+      .sec{font-size:11.5px;font-weight:700;color:#64748b;margin:12px 0 6px}
+      .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+      .seg button{height:32px;border:1px solid #e5e7eb;background:#fff;border-radius:9px;font:inherit;font-size:11.5px;color:#334155;cursor:pointer;transition:.14s}
+      .seg button:hover{border-color:#c7d2fe}
+      .seg button.on{border-color:#4f46e5;background:#eef2ff;color:#3730a3;font-weight:800}
+      .seg.gw button{font-size:11px}
+      .seg.gw{grid-template-columns:repeat(2,1fr)}
+
+      .opt{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#475569;margin:9px 0 0;gap:8px}
+      .opt .hint{color:#94a3b8;font-size:10.5px}
+      .sw{position:relative;flex:none;width:38px;height:22px;cursor:pointer}
+      .sw input{position:absolute;opacity:0;width:0;height:0}
+      .sw span{position:absolute;inset:0;border-radius:999px;background:#cbd5e1;transition:.2s}
+      .sw span::after{content:"";position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.2s}
+      .sw input:checked + span{background:#4f46e5}
+      .sw input:checked + span::after{transform:translateX(-16px)}
+
+      details{margin:10px 0 0;border:1px solid #e8edf5;border-radius:10px;background:#fafbfe}
+      summary{cursor:pointer;padding:7px 10px;font-size:11.5px;font-weight:700;color:#475569;list-style:none;display:flex;justify-content:space-between;user-select:none}
+      summary::-webkit-details-marker{display:none}
+      summary::after{content:"▾";transition:.2s}
+      details[open] > summary::after{transform:rotate(180deg)}
+      .set{display:grid;grid-template-columns:1fr 88px;gap:7px 8px;align-items:center;padding:4px 10px 12px;font-size:11.5px;color:#475569}
+      .set input[type=number],.set input[type=text]{width:100%;height:29px;padding:0 7px;border:1px solid #dbe2ec;border-radius:8px;direction:ltr;font:inherit;font-size:11.5px;background:#fff;color:#111}
+      .set input:focus{outline:0;border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,.16)}
+      .set .sw{justify-self:end}
+
+      .go{width:100%;height:42px;margin-top:11px;border:0;border-radius:11px;color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer;
+        background:linear-gradient(135deg,#16a34a,#22c55e);box-shadow:0 6px 16px rgba(34,197,94,.32);transition:.15s}
+      .go:hover{filter:brightness(1.05)}
+      .go.stop{background:linear-gradient(135deg,#dc2626,#ef4444);box-shadow:0 6px 16px rgba(239,68,68,.32)}
+      .go:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;filter:none}
+
+      .rowbtns{display:flex;gap:6px;margin-top:6px}
+      .mini{flex:1;height:32px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;color:#4338ca;font:inherit;font-size:12px;
+        font-weight:700;cursor:pointer;transition:.14s}
+      .mini:hover{background:#eef2ff;border-color:#c7d2fe}
+      .stat{display:flex;align-items:center;gap:6px;margin-top:9px;font-size:11px;color:#64748b;flex-wrap:wrap}
+      .pill{background:#f1f5f9;border-radius:999px;padding:2px 8px;white-space:nowrap}
+      .pill.good{background:#dcfce7;color:#15803d}.pill.warn{background:#fef3c7;color:#b45309}.pill.bad{background:#fee2e2;color:#b91c1c}
+      .meter{flex:1;min-width:60px;height:5px;border-radius:999px;background:#e2e8f0;overflow:hidden}
+      .meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#22c55e,#4f46e5);transition:width .3s}
+
+      .log{margin-top:9px;padding:7px 9px;border-radius:9px;background:#f8fafc;border:1px solid #eef2f7;color:#475569;font-size:11.5px;
+        max-height:92px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+      .log div{padding:1px 0}
+      .log .ok{color:#15803d}.log .warn{color:#b45309}.log .err{color:#b91c1c}
+      .foot{margin-top:8px;font-size:10.5px;color:#94a3b8;text-align:center}
+      .foot b{color:#6366f1}
+      .hidden{display:none !important}
+    
+</style></head><body>
+<div class="stage">
+  <div class="panel">
+
+    <div class="panel" id="panel" style="height:620px">
+      <div class="hd" id="hd">
+        <span class="dot" id="dot"></span>
+        <span class="ttl">خرید سریع کویرتایر</span>
+        <button class="ib" id="min" title="جمع/باز کردن">–</button>
+        <button class="ib" id="hide" title="پنهان کردن (Alt+Shift+P)">✕</button>
+      </div>
+      <div class="bd" style="overflow:auto">
+        <div class="tabs" id="tabs">
+          <button data-tab="products">محصولات</button>
+          <button data-tab="pay">پرداخت</button>
+          <button data-tab="adv">پیشرفته</button>
+          <button data-tab="trace" class="on">لاگ حرفه‌ای <b id="traceBadge" class="tbadge on">۱</b></button>
+        </div>
+
+        <!-- محصولات -->
+        <div data-pane="trace" class="">
+          <div id="traceMount">
+<div class="trace-view">
+  <div class="tv-bar">
+    <span class="tv-pill">۱۸</span>
+    <span class="tv-pill bad">۱ خطا</span>
+    <span class="tv-pill warn">۱ هشدار</span>
+    <span class="tv-pill">s9f2ab1</span>
+  </div>
+  <div class="tv-tools">
+    <select><option>همه</option></select>
+    <input placeholder="جست‌وجو در لاگ…">
+    <button class="tv-b">کپی</button>
+    <button class="tv-b">JSON</button>
+    <button class="tv-b bad">پاک</button>
+  </div>
+  <div class="tv-fails"><div class="tv-fail-title">دلایل شکست (برای رفع باگ):</div><button class="tv-chip">محدودیت سرور ×۱</button><button class="tv-chip">سرور محصول را انتخاب نکرد ×۱</button></div>
+  <div class="tv-feed"><div class="tv-row info"><div class="tv-h"><span class="tv-time">00:41:01</span><span class="tv-stage s-BOOT">راه‌اندازی</span><span class="tv-msg">موتور لاگ حرفه‌ای آماده شد</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "session": "s9f2ab1",
+ "v": "1.0.0"
+}</pre></div></div><div class="tv-row info"><div class="tv-h"><span class="tv-time">01:41:02</span><span class="tv-stage s-WATCH">پایش</span><span class="tv-msg">پایش شروع شد</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "watching": [
+  "16",
+  "10"
+ ],
+ "interval": 1200,
+ "cap": 45
+}</pre></div></div><div class="tv-row info"><div class="tv-h"><span class="tv-time">02:41:03</span><span class="tv-stage s-DETECT">تشخیص</span><span class="tv-msg">خط مبنا ثبت شد</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "availNow": 0,
+ "watching": 2
+}</pre></div></div><div class="tv-row warn failed open"><div class="tv-h"><span class="tv-time">03:41:04</span><span class="tv-stage s-NET">شبکه</span><span class="tv-code">WATCH_429</span><span class="tv-msg">GET /esale/products/availability → 429</span></div><div class="tv-d" style="display:block"><pre class="tv-json">{
+ "status": 429,
+ "ms": 88
+}</pre></div></div><div class="tv-row debug"><div class="tv-h"><span class="tv-time">04:41:05</span><span class="tv-stage s-WATCH">پایش</span><span class="tv-msg">محدودیت/بودجه</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "reason": "api",
+ "status": 429,
+ "wait": 9800,
+ "guard": {
+  "used": 5,
+  "cap": 45,
+  "cool": 9800
+ }
+}</pre></div></div><div class="tv-row info"><div class="tv-h"><span class="tv-time">05:41:06</span><span class="tv-stage s-DETECT">تشخیص</span><span class="tv-msg">گذار ناموجود → موجود</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "fresh": [
+  "16"
+ ],
+ "baseline": true
+}</pre></div></div><div class="tv-row info"><div class="tv-h"><span class="tv-time">06:41:07</span><span class="tv-stage s-ADD">سبد</span><span class="tv-msg">شروع خرید Strong R14 KB22 — 185/65R14</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "tid": "p9x1",
+ "id": "16"
+}</pre></div></div><div class="tv-row debug"><div class="tv-h"><span class="tv-time">07:41:08</span><span class="tv-stage s-ADD">سبد</span><span class="tv-ms">12ms</span><span class="tv-msg">تلاش 1/3</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "budget": 1600
+}</pre></div></div><div class="tv-row debug"><div class="tv-h"><span class="tv-time">08:41:09</span><span class="tv-stage s-ADD">سبد</span><span class="tv-ms">34ms</span><span class="tv-msg">نتیجه addToCart</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "sent": true,
+ "method": "wire"
+}</pre></div></div><div class="tv-row debug"><div class="tv-h"><span class="tv-time">09:41:10</span><span class="tv-stage s-NET">شبکه</span><span class="tv-msg">POST /livewire/update → 200</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "status": 200,
+ "ms": 142,
+ "redirect": "/esale/payment",
+ "calls": [
+  "add"
+ ]
+}</pre></div></div><div class="tv-row debug"><div class="tv-h"><span class="tv-time">10:41:11</span><span class="tv-stage s-ADD">سبد</span><span class="tv-msg">نتیجه انتظار</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "ok": true,
+ "how": "livewire-redirect",
+ "status": 200,
+ "ms": 188
+}</pre></div></div><div class="tv-row info"><div class="tv-h"><span class="tv-time">11:41:12</span><span class="tv-stage s-ADD">سبد</span><span class="tv-ms">421ms</span><span class="tv-msg">درج در سبد موفق</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "how": "livewire-redirect",
+ "totalMs": 421,
+ "try": 1
+}</pre></div></div><div class="tv-row info"><div class="tv-h"><span class="tv-time">12:41:13</span><span class="tv-stage s-NAV">ناوبری</span><span class="tv-ms">290ms</span><span class="tv-msg">ریدایرکت خودکار انجام شد</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "how": "rendered",
+ "ms": 290
+}</pre></div></div><div class="tv-row info"><div class="tv-h"><span class="tv-time">13:41:14</span><span class="tv-stage s-PAY">پرداخت</span><span class="tv-msg">ورود به صفحه‌ی پرداخت</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "tid": "p9x1",
+ "armed": true,
+ "autoPay": true
+}</pre></div></div><div class="tv-row debug"><div class="tv-h"><span class="tv-time">14:41:15</span><span class="tv-stage s-PAY">پرداخت</span><span class="tv-ms">142ms</span><span class="tv-msg">کلیک درگاه</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "ok": "state",
+ "gwBefore": "",
+ "gwAfter": "refahk"
+}</pre></div></div><div class="tv-row info"><div class="tv-h"><span class="tv-time">15:41:16</span><span class="tv-stage s-PAY">پرداخت</span><span class="tv-ms">1.29s</span><span class="tv-msg">انتقال به درگاه انجام شد</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "how": "livewire-redirect",
+ "tries": 1,
+ "totalMs": 1287
+}</pre></div></div><div class="tv-row error failed open"><div class="tv-h"><span class="tv-time">16:41:17</span><span class="tv-stage s-ADD">سبد</span><span class="tv-ms">4.82s</span><span class="tv-code">ADD_NOT_SELECTED</span><span class="tv-msg">افزودن خودکار به سبد ناموفق ماند</span></div><div class="tv-d" style="display:block"><pre class="tv-json">{
+ "tries": 3,
+ "lastFail": {
+  "code": "ADD_NOT_SELECTED",
+  "status": 200
+ }
+}</pre><div class="tv-diag"><b>تشخیص:</b><div class="tv-kv"><span class="tv-k">card</span><pre class="tv-json">{
+ "id": "10",
+ "status": {
+  "available": false,
+  "source": "snapshot"
+ },
+ "hasAddBtn": true
+}</pre></div><div class="tv-kv"><span class="tv-k">addEvent</span><pre class="tv-json">{
+ "type": "add-rejected",
+ "err": "HTTP 500"
+}</pre></div></div><div class="tv-steps"><div class="tv-step"><span class="tv-ms">0ms</span><span>تلاش 1/3</span><pre class="tv-json">{
+ "budget": 1600
+}</pre></div><div class="tv-step"><span class="tv-ms">31ms</span><span>نتیجه addToCart</span><pre class="tv-json">{
+ "sent": true,
+ "method": "wire"
+}</pre></div><div class="tv-step"><span class="tv-ms">1.60s</span><span>نتیجه انتظار</span><pre class="tv-json">{
+ "ok": false,
+ "how": "timeout"
+}</pre></div><div class="tv-step"><span class="tv-ms">150ms</span><span>تلاش 2/3</span><pre class="tv-json">{
+ "budget": 1600
+}</pre></div><div class="tv-step"><span class="tv-ms">1.60s</span><span>نتیجه انتظار</span><pre class="tv-json">{
+ "ok": false,
+ "how": "timeout"
+}</pre></div></div></div></div><div class="tv-row debug"><div class="tv-h"><span class="tv-time">17:41:18</span><span class="tv-stage s-ADD">سبد</span><span class="tv-msg">گام‌های شکست</span></div><div class="tv-d" style="display:none"><pre class="tv-json">{
+ "step1": "add() فراخوانی شد"
+}</pre></div></div></div>
+  <div class="tv-foot">راه‌اندازی: ۲ · پایش: ۳ · تشخیص: ۲ · سبد: ۶ · ناوبری: ۱ · پرداخت: ۳ · شبکه: ۲</div>
+</div></div>
+        </div>
+
+        <button class="go" id="go" disabled>▶ شروع پایش</button>
+        <div class="rowbtns">
+          <button class="mini" id="buyNow" title="همین حالا برای محصولات انتخاب‌شده‌ی موجود، خرید را انجام بده">⚡ خرید فوری</button>
+          <button class="mini" id="resetBase" title="وضعیت فعلی را دوباره خط مبنا بگیر">↺ بازگرفتن خط مبنا</button>
+        </div>
+        <div class="stat">
+          <span class="pill" id="pMode">آماده</span>
+          <span class="pill" id="pLat"></span>
+          <span class="pill" id="pChecks"></span>
+          <span class="pill warn hidden" id="pOwner"></span>
+          <span class="meter" title="بودجه‌ی درخواست در دقیقه"><i id="meter"></i></span>
+        </div>
+        <div class="log" id="log"></div>
+      </div>
+    </div></div>
+  <div class="cap">
+    <b>تب «لاگ حرفه‌ای»</b> — جدا از لاگ کاربر عادی ·
+    روی ردیف‌ها کلیک کنید تا <code>دیف</code> داده‌ی تشخیصی باز شود
+  </div>
+</div>
+</body></html>

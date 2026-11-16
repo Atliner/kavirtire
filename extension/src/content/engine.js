@@ -166,6 +166,7 @@
       state.prev = { ...state.prev, ...products };
       state.baselineDone = true;
       const availNow = state.watching.filter((id) => products[id]?.available).length;
+      K.trace?.info('DETECT', 'خط مبنا ثبت شد', { availNow, watching: state.watching.length, products: Object.keys(products).length });
       E.note(availNow
         ? `خط مبنا ثبت شد؛ ${K.fa(availNow)} محصول همین حالا موجود است و منتظر تغییر بعدی می‌مانیم.`
         : 'خط مبنا ثبت شد؛ منتظر موجود شدن محصولات…', 'info');
@@ -183,11 +184,13 @@
       if (K.config.jitter) next = next * (0.82 + Math.random() * 0.36);
 
       let res;
+      const T = K.trace;
       try {
         const cool = guard.cooldownLeft();
         if (cool > 0) {
           state.nextAt = Date.now() + cool;
           E.note(`⏳ استراحت محافظتی: ${Math.ceil(cool / 1000)} ثانیه (پاسخ محدودیت)`, 'warn');
+          T.warn('WATCH', 'چرخه به دلیل استراحت محافظتی رد شد', { cool, tick: state.tickNo }, K.FAIL.WATCH_429);
           emit('guard', guard.snapshot());
           return schedule(cool);
         }
@@ -198,6 +201,10 @@
           state.errors++;
           const w = Math.max(res.wait || 0, Number(K.config.interval) || 1200);
           E.note(`⚠️ محدودیت سرور (${res.reason === 'budget' ? 'بودجه‌ی نرخ' : (res.status || 429)}) — برگشت بعد از ${(w / 1000).toFixed(1)} ثانیه`, 'warn');
+          T.debug('WATCH', 'محدودیت/بودجه', {
+            reason: res.reason, status: res.status, wait: Math.round(w),
+            guard: guard.snapshot(), tick: state.tickNo
+          });
           emit('guard', guard.snapshot());
           if (!K.config.pageFallback) return schedule(w);
           // فالبک: صفحه
@@ -224,6 +231,12 @@
         const products = res.products || {};
         state.products = products;
         emit('data', { products, via: res.via, latency: state.latency });
+        if (state.tickNo % 20 === 0) {
+          T.debug('WATCH', 'چرخه‌ی موفق', {
+            tick: state.tickNo, via: res.via, latency: state.latency,
+            avail: Object.values(products).filter((x) => x && x.available).length
+          });
+        }
 
         // فقط محصولاتی که در همین چرخه تازه «موجود» شده‌اند (نه موجودهای قدیمی)
         const fresh = detect(products).filter((id) => !state.hits.includes(id));
@@ -234,15 +247,20 @@
         state.prev = { ...state.prev, ...products };
 
         if (fresh.length) {
+          T.info('DETECT', 'گذار ناموجود → موجود', {
+            fresh, prev: Object.fromEntries(fresh.map((id) => [id, state.prev[id] || null])),
+            now: Object.fromEntries(fresh.map((id) => [id, products[id] || null])),
+            baseline: state.baselineDone, tick: state.tickNo
+          });
           state.hits.push(...fresh);
           const list = K.site.products();
           const first = list.find((p) => String(p.id) === String(fresh[0]))
             || state.watching.map((id) => list.find((p) => String(p.id) === String(id))).find(Boolean);
           state.hit = first ? first.id : fresh[0];
+          // ⚠️ «موجود شد» یعنی فقط تشخیص داده شد — نه این‌که خرید موفق بوده.
+          // هرگز پیام «خرید موفق» نده تا وقتی واقعاً در سبد درج نشده باشد.
           emit('hit', { ids: fresh, first: state.hit });
-          K.notify('موجود شد! 🛞', first ? first.full : `محصول ${fresh[0]}`);
-          if (K.config.stopAfterHit) E.stop('خرید موفق');
-          return; // onHit جریان را می‌گیرد
+          return; // onHit جریان را می‌گیرد و در پایان خودش وضعیت را می‌بندد
         }
 
         const rem = Math.max(0, next - (performance.now() - started));
@@ -264,69 +282,184 @@
     }
 
     // ---------- خرید ----------
+    // درس گرفته‌شده از لاگ واقعی:
+    //  • «⏹ خرید موفق» نباید قبل از موفقیت واقعی لاگ شود  → اینجا فقط بعد از درج در سبد
+    //  • انتظار DOM (تا ۳.۵ ثانیه) تلف‌کننده بود          → تشخیص از پاسخ شبکه
+    //  • بعد از شکست، خط مبنا ریست می‌شد                  → حالا حفظ می‌شود
     async function onHit(ids) {
       if (state.busy) return;
       state.busy = true;
       clearTimeout(state.timer);
 
+      const tid = 'p' + Date.now().toString(36);
+      state.lastPurchase = tid;
       const prods = K.site.products();
       const wanted = ids.map(String).map((id) => prods.find((p) => String(p.id) === id)).filter(Boolean);
       const target = wanted[0] || null;
+      const T = K.trace;
 
+      const span = T.start('ADD', `شروع خرید ${target?.full || ids[0]}`, {
+        tid, id: target?.id || ids[0], gatewaysInConfig: K.config.gateway, tried: ids
+      });
+      span.diag('card', target ? {
+        id: target.id, title: target.title, size: target.size,
+        status: K.site.status(target.el),
+        hasAddBtn: !!target.el?.querySelector('.product-add-button'),
+        wireId: target.el?.getAttribute?.('wire:id') || null
+      } : null);
+      span.diag('netBefore', g.__KVT_NET__ ? g.__KVT_NET__.recent(6) : null);
+      emit('purchase', { tid, phase: 'start', id: target?.id || ids[0] });
       emit('grab', { id: target?.id || ids[0], title: target?.full || '' });
-      E.note(`🎯 موجود شد: ${target?.full || ids[0]}`, 'ok');
 
       if (!K.config.autoAdd) {
+        span.ok('خرید خودکار خاموش است');
         state.busy = false;
         emit('run', { running: false });
         return;
       }
       if (!target) {
-        E.note('کارت محصول در صفحه پیدا نشد؛ صفحه را نوسازی کنید.', 'warn');
+        span.fail(K.FAIL.ADD_NO_ELEMENT, 'کارت محصول در صفحه پیدا نشد', { ids });
+        E.note('کارت محصول پیدا نشد؛ صفحه را نوسازی کنید.', 'warn');
         state.busy = false;
         return;
       }
 
-      // علامت خرید را قبل از ریدایرکت ذخیره می‌کنیم (فقط کارت خودمان)
-      K.store.set('arm', { t: Date.now(), id: String(target.id) });
-      emit('arm', { arm: true, id: String(target.id) });
+      // علامت خرید فقط برای صفحه‌ی پرداخت
+      K.store.set('arm', { t: Date.now(), id: String(target.id), tid });
+      emit('arm', { arm: true, id: String(target.id), tid });
 
       const tries = K.clamp(Number(K.config.payRetries) || 3, 1, 6);
-      for (let i = 1; i <= tries && !state.cancel; i++) {
-        if (i > 1) E.note(`تلاش ${K.fa(i)}/${K.fa(tries)} برای افزودن`, 'warn');
-        const r = await S.addToCart(target, { guard });
-        if (!r.ok) { E.note('⚠️ ' + r.reason, 'warn'); break; }
+      // مهلت درج در سبد: باید خیلی کوتاه باشد (هدف: زیر ۲ ثانیه)
+      const perTryBudget = Math.max(600, Math.min(Number(K.config.addTimeout) || 1600, 4000));
+      let lastFail = null;
 
-        // منتظر علامت موفقیت یا ریدایرکت
-        const el = S.cardById(target.id) || target.el;
-        const done = await K.waitFor(() => S.addedSignals(el), 3500, 60);
-        if (done) {
-          E.note('✅ به سبد اضافه شد؛ رفتن به درگاه...', 'ok');
+      for (let i = 1; i <= tries && !state.cancel; i++) {
+        const trySpan = span.step(`تلاش ${i}/${tries}`, { budget: perTryBudget });
+        const r = await K.site.addToCart(target, {
+          onEvent: (ev) => {
+            span.diag('addEvent', ev);
+            if (ev.type === 'add-rejected') span.diag('addRejected', ev);
+          }
+        });
+        span.step('نتیجه addToCart', { sent: r.sent, method: r.method, reason: r.reason, code: r.code });
+
+        if (!r.sent) {
+          lastFail = { code: r.code || K.FAIL.ADD_NO_METHOD, reason: r.reason, status: r.status };
+          span.diag('noSend', lastFail);
+          // اگر هیچ روش افزودنی روی کارت نیست، تکرار بی‌فایده است
+          if (r.code === 'ADD_NO_METHOD' || r.code === 'ADD_NO_ELEMENT') break;
+          await K.sleep(100);
+          continue;
+        }
+
+        // انتظار برای نتیجه — با بودجه‌ی کوتاه
+        const res = await r.wait(perTryBudget);
+        span.step('نتیجه انتظار', res);
+
+        if (res.ok) {
+          // ✅ درج در سبد قطعی شد
+          const ms = span.elapsed();
+          span.ok('درج در سبد موفق', { how: res.how, totalMs: ms, try: i });
+          T.info('ADD', `✅ در سبد: ${target.full} (${ms}ms، روش ${res.how})`, { tid, how: res.how });
+
           state.running = false;
           releaseOwner();
-          emit('run', { running: false });
           state.busy = false;
-          if (!S.paymentPage()) {
-            // ریدایرکت ممکن است خودش انجام شده باشد؛ کمی صبر بعد فالبک
-            await K.sleep(600);
-            if (!K.store.get('navigating', false) && !S.paymentPage()) {
-              location.href = K.config.paymentUrl || '/esale/payment';
-            }
+          emit('run', { running: false });
+          E.note(`✅ به سبد اضافه شد (${K.fa(ms)}ms)`, 'ok');
+          if (!K.config.stopAfterHit) {
+            // کاربر می‌خواهد پایش ادامه یابد؛ بعد از هدایت به پرداخت از سر می‌گیریم
+            K.store.set('resumeAfterPay', true);
           }
+          emit('purchase', { tid, phase: 'added', how: res.how, ms });
+
+          // هدایت فوری به پرداخت — موازی، بدون اتلاف
+          await goToPayment(tid);
           return;
         }
-        S.closePopups();
-        await K.sleep(500);
+
+        lastFail = {
+          code: res.code || K.FAIL.ADD_NOT_SELECTED,
+          how: res.how, status: res.status, body: res.body,
+          err: res.err, ms: res.ms
+        };
+        span.step('تلاش ناموفق', lastFail);
+        lastFail = null;
+
+        // 419/429: توقف تلاش‌های بیشتر برای این محصول (بی‌فایده است)
+        if (res.status === 419) {
+          span.fail(K.FAIL.ADD_SERVER_419, 'نشست منقضی شد (۴۱۹)؛ صفحه را نوسازی کنید', res);
+          K.notify('نشست منقضی شد', 'کویرتایر: صفحه را نوسازی و دوباره وارد شوید.');
+          K.store.del('arm');
+          emit('arm', { arm: false });
+          state.busy = false;
+          emit('run', { running: false });
+          return;
+        }
+        if (res.status === 429) {
+          span.fail(K.FAIL.ADD_SERVER_429, 'محدودیت نرخ هنگام افزودن (۴۲۹)', res);
+          guard.limited(0, 429, 'api');
+          break;
+        }
+        K.site.closePopups();
+        await K.sleep(150);
       }
+
+      // ❌ شکست کامل: خط مبنا را ریست نمی‌کنیم؛ فقط این محصول را دوباره تلاش‌پذیر می‌کنیم
+      const code = lastFail?.code || K.FAIL.ADD_NOT_SELECTED;
+      span.fail(code, 'افزودن خودکار به سبد ناموفق ماند', { tries, lastFail });
+      T.warn('ADD', `❌ افزودن ناموفق: ${target.full}`, { code, tries });
+      emit('purchase', { tid, phase: 'failed', code });
+
+      // شبکه برای تشخیص بعدی: این محصول دوباره کاندید شود
+      state.hits = state.hits.filter((x) => String(x) !== String(target.id));
+      // وضعیت قبلی را پاک کن تا گذار بعدی دوباره تشخیص داده شود
+      if (state.prev[target.id]) delete state.prev[target.id];
 
       K.store.del('arm');
       emit('arm', { arm: false });
       state.busy = false;
       if (state.cancel) return;
-      E.note('⚠️ افزودن خودکار نشد؛ پایش ادامه دارد.', 'warn');
+
+      E.note(`⚠️ افزودن نشد (${code})؛ پایش ادامه دارد — دوباره تلاش می‌شود.`, 'warn');
       if (state.running) schedule(Math.max(Number(K.config.interval) || 1200, 800));
+      else E.start();
     }
-    E.onHit = onHit;
+
+    /** هدایت سریع به صفحه‌ی پرداخت با تشخیص پیش‌دستانه‌ی ریدایرکت Livewire */
+    async function goToPayment(tid) {
+      const T = K.trace;
+      const span = T.start('NAV', 'رفتن به صفحه‌ی پرداخت');
+      const t0 = performance.now();
+
+      // Livewire خودش معمولاً ریدایرکت می‌کند؛ کوتاه صبر می‌کنیم
+      const red = await K.waitFor(() => {
+        if (K.store.get('navigating', false)) return { how: 'navigating' };
+        if (K.site.isPaymentRendered()) return { how: 'rendered' };
+        const lr = g.__KVT_NET__?.lastRedirect();
+        if (lr && Date.now() - lr.t < 2500) return { how: 'livewire-redirect', url: lr.redirect };
+        return null;
+      }, Math.max(400, Number(K.config.navWait) || 900), 40);
+
+      if (red) {
+        span.ok('ریدایرکت خودکار انجام شد', { ...red, ms: span.elapsed() });
+        return { ok: true, ...red };
+      }
+
+      // فالبک: خودمان می‌رویم
+      const url = K.config.paymentUrl || '/esale/payment';
+      span.step('فالبک: ناوبری دستی', { url });
+      try {
+        location.href = url;
+        span.ok('ناوبری دستی به پرداخت', { url, ms: Math.round(performance.now() - t0) });
+        return { ok: true, how: 'manual' };
+      } catch (e) {
+        span.fail(K.FAIL.NAV_FAILED, 'ناوبری به پرداخت شکست خورد', { url, err: String(e && e.message || e) });
+        K.notify('خطای ناوبری', 'به‌صورت دستی به سبد خرید بروید.');
+        return { ok: false };
+      }
+    }
+    E.goToPayment = goToPayment;
 
     // ---------- کنترل ----------
     E.start = () => {
@@ -348,6 +481,10 @@
       state.startedAt = Date.now(); state.checks = 0; state.pageMul = 1; state.pageHits = []; state.pageBlockedUntil = 0;
       try { K.bridge.fire('monitor:claim', { tab: guard.tabId }); } catch (e) { /* noop */ }
       emit('run', { running: true });
+      K.trace?.info('WATCH', 'پایش شروع شد', {
+        watching: state.watching, interval: K.config.interval, cap: K.config.maxPerMinute,
+        guard: guard.snapshot(), preset: K.config.preset
+      });
       E.note('▶ پایش شروع شد (' + K.fa(state.watching.length) + ' محصول)', 'ok');
       tick();
       return true;
@@ -361,6 +498,9 @@
       emit('owner', { owner: null, mine: false });
       try { K.bridge.fire('monitor:release', null); } catch (e) { /* noop */ }
       emit('run', { running: false });
+      K.trace?.info('WATCH', 'پایش متوقف شد', {
+        reason, checks: state.checks, checksOk: state.checksOk, hits: state.hits, errors: state.errors
+      });
       E.note('⏹ پایش متوقف شد' + (reason ? ' — ' + reason : ''), 'info');
     };
 
