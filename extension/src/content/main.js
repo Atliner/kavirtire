@@ -112,12 +112,17 @@
   // ---------- پنل ----------
   function ensurePanel() {
     if (panel?.alive()) return panel;
-    panel = K.createPanel();
-    panel.alive = panel.alive;
+    try {
+      panel = K.createPanel();
+    } catch (e) {
+      console.warn('[KVT] پنل ساخته نشد:', e.message);
+      return null;
+    }
     return panel;
   }
   function showPanel(tab) {
     const p = ensurePanel();
+    if (!p) return;
     p.show?.();
     document.getElementById('kvt-restore')?.remove();
     if (K.config.panelHidden) K.applyConfig({ panelHidden: false });
@@ -313,7 +318,8 @@
   });
 
   // ---------- شروع ----------
-  K.ready.then(() => {
+  // ⚠️ سرعت: بدون انتظار برای تنظیمات پس‌زمینه شروع کن
+  ;(function boot() {
     K.log('افزونه‌ی خرید سریع کویرتایر فعال شد (v' + K.version + ')', 'ok');
     mount();
     watchPageRisks();
@@ -323,7 +329,10 @@
       if (ev.type === 'lw-fail') K.emit('lw-fail', { status: ev.status });
     });
     try { mo.observe(document.body || document.documentElement, { childList: true, subtree: true }); } catch (e) { /* noop */ }
-  });
+  })();
+
+  // تنظیمات که آمد، فقط لیست/overlay را تازه کن (نه شروع دوباره)
+  K.ready.then(() => { try { overlay.sync(); K.emit('products-changed'); } catch (e) { /* noop */ } });
 
   window.addEventListener('beforeunload', () => {
     K.store.set('navigating', true);

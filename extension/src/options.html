@@ -92,6 +92,19 @@
     </section>
 
     <section class="card">
+      <h2>تعداد حلقه (در صفحه‌ی پیش از درگاه)</h2>
+      <p class="muted">افزونه قبل از رفتن به درگاه، تعداد را روی این مقدار تنظیم می‌کند. حداکثر ۲ حلقه.</p>
+      <label class="field"><span>تعداد حلقه</span>
+        <input type="number" data-key="quantity" min="1" max="10">
+      </label>
+      <label class="switch"><input type="checkbox" data-key="qtyEnabled"><i></i><span>تنظیم خودکار تعداد</span></label>
+      <label class="switch"><input type="checkbox" data-key="qtyRequired"><i></i><span>اگر تعداد ست نشد، پرداخت نکن (ایمنی)</span></label>
+      <label class="field"><span>بودجه‌ی زمانی تنظیم تعداد (ms)</span>
+        <input type="number" data-key="qtyWait" min="300" max="5000" step="100">
+      </label>
+    </section>
+
+    <section class="card">
       <h2>سرعت خرید (هدف: زیر ۲ ثانیه)</h2>
       <p class="muted">این مقادیر تعیین می‌کنند افزونه چقدر صبر کند تا سبد/درگاه/پرداخت آماده شود. کمتر = سریع‌تر، ولی ممکن است در اینترنت کند به نتیجه نرسد.</p>
       <label class="field"><span>بودجه‌ی هر تلاش افزودن (ms)</span>

@@ -10,7 +10,7 @@
   'use strict';
 
   const TAG = '__kvt_fastbuy__';
-  const VERSION = '1.1.0';
+  const VERSION = '1.2.0';
   let port = null;
   let heartbeat = null;
 

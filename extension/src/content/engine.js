@@ -247,6 +247,10 @@
         state.prev = { ...state.prev, ...products };
 
         if (fresh.length) {
+          // ⏱ شروع زمان‌سنج «موجود شد → درگاه باز شد»
+          const hitAt = Date.now();
+          K.store.set('hitAt', hitAt);
+          K.store.set('purchaseId', String(fresh[0]));
           T.info('DETECT', 'گذار ناموجود → موجود', {
             fresh, prev: Object.fromEntries(fresh.map((id) => [id, state.prev[id] || null])),
             now: Object.fromEntries(fresh.map((id) => [id, products[id] || null])),
@@ -366,7 +370,12 @@
           releaseOwner();
           state.busy = false;
           emit('run', { running: false });
+          const hitAt = Number(K.store.get('hitAt', 0)) || 0;
+          const sinceHit = hitAt ? Date.now() - hitAt : ms;
           E.note(`✅ به سبد اضافه شد (${K.fa(ms)}ms)`, 'ok');
+          T.info('ADD', `⏱ از موجود شدن تا سبد: ${K.fa(sinceHit)}ms`, {
+            tid, sinceHit, addMs: ms, how: res.how
+          });
           if (!K.config.stopAfterHit) {
             // کاربر می‌خواهد پایش ادامه یابد؛ بعد از هدایت به پرداخت از سر می‌گیریم
             K.store.set('resumeAfterPay', true);

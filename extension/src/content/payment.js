@@ -149,17 +149,49 @@
     }
 
     /**
-     * هسته‌ی پرداخت — بدون انتظارهای طولانی.
-     * ۱) سبد را چک کن  ۲) دکمه‌ی درگاه را پیدا/انتخاب کن
-     * ۳) دکمه‌ی پرداخت را بزن  ۴) منتظر ریدایرکت بمان
+     * هسته‌ی پرداخت — «موازی»، نه سری.
+     *
+     * برای رسیدن به هدف زیر ۲ ثانیه، کارها باید هم‌زمان اجرا شوند:
+     *   A) آماده شدن سبد   B) تنظیم تعداد (۲ حلقه)   C) یافتن دکمه‌ی درگاه
+     * سپس D) کلیک درگاه و E) کلیک پرداخت — هر کدام به محض آماده شدن.
+     *
+     * هیچ مرحله‌ای منتظر مرحله‌ی قبلی نمی‌ماند مگر واقعاً وابسته باشد.
      */
     async function run(auto) {
+      const runT0 = performance.now();
       step('ورود', 'done');
-      ui.buttons([['لغو', () => { st.cancelled = true; consume(); ui.set('⏹ لغو شد؛ خودتان ادامه دهید.', 'warn'); ui.buttons([]); finish(null, 'کاربر لغو کرد'); }, 'bad']]);
+      ui.buttons([['لغو', () => {
+        st.cancelled = true; consume();
+        ui.set('⏹ لغو شد؛ خودتان ادامه دهید.', 'warn'); ui.buttons([]);
+        finish(null, 'کاربر لغو کرد');
+      }, 'bad']]);
 
-      // ---------- ۱) سبد ----------
+      const wantQty = Math.max(1, Number(K.config.quantity) || 2);
+      const qtyOn = !!K.config.qtyEnabled;
+
+      // ══ مرحله A+B+C — همه هم‌زمان ═══════════════════════════════════
       step('بررسی سبد', 'now');
-      const cartOk = await K.waitFor(() => S.cartCount() > 0, 1200, 40);
+      step('یافتن درگاه', 'now');
+      if (qtyOn) step(`تعداد: ${wantQty}`, 'now');
+
+      const pCart = K.waitFor(() => (S.cartCount() > 0 ? true : null), 1200, 25);
+      const pGw = K.waitFor(() => {
+        const l = S.gatewayButtons();
+        return l.length ? l : null;
+      }, 1600, 25);
+      const pQty = (qtyOn && K.qty)
+        ? K.qty.ensure(wantQty, { budget: Number(K.config.qtyWait) || 1200 })
+        : Promise.resolve({ ok: true, how: 'disabled' });
+
+      const [cartOk, gwRes, qtyRes] = await Promise.all([pCart, pGw, pQty]);
+
+      span.diag('parallel', {
+        cart: cartOk, gwCount: gwRes ? gwRes.length : 0,
+        qty: qtyRes ? { ok: qtyRes.ok, how: qtyRes.how, ms: qtyRes.ms, from: qtyRes.from, to: qtyRes.to } : null,
+        ms: Math.round(performance.now() - runT0)
+      });
+
+      // --- سبد ---
       if (!cartOk) {
         step('بررسی سبد', 'fail');
         consume(); K.beep('warn');
@@ -170,15 +202,25 @@
       }
       step('بررسی سبد', 'done');
 
-      // ---------- ۲) دکمه‌ی درگاه -------------------------------------------------
-      step('یافتن درگاه', 'now');
-      // حداکثر ۳ ثانیه؛ اولین بار معمولاً زیر ۱۰۰ms است
-      const gwList = await K.waitFor(() => {
-        const l = S.gatewayButtons();
-        return l.length ? l : null;
-      }, 3000, 30);
+      // --- تعداد ---
+      if (qtyOn) {
+        if (qtyRes.ok) {
+          step(`تعداد: ${wantQty}`, 'done');
+          ui.set(`🧾 ${wantQty} حلقه ✓`);
+        } else {
+          step(`تعداد: ${wantQty}`, 'fail');
+          finish(K.FAIL.PAY_QTY, 'تنظیم تعداد ناموفق بود', { wantQty, ...qtyRes });
+          if (K.config.qtyRequired) {
+            consume(); K.beep('warn');
+            ui.set(`⚠️ تعداد روی ${wantQty} تنظیم نشد؛ پرداخت متوقف شد (به‌خاطر تنظیم شما).`, 'bad');
+            ui.buttons([['تلاش دوباره', () => lockRun(() => run(false)), 'ok']]);
+            return;
+          }
+        }
+      }
 
-      if (!gwList || !gwList.length) {
+      // --- درگاه ---
+      if (!gwRes || !gwRes.length) {
         step('یافتن درگاه', 'fail');
         consume(); K.beep('warn');
         ui.set('⚠️ دکمه‌ی درگاه پیدا نشد؛ خودتان انتخاب و پرداخت کنید.', 'bad');
@@ -187,23 +229,20 @@
         finish(K.FAIL.PAY_NO_GWBTN, 'دکمه‌ی درگاه در DOM نبود', { path: location.pathname });
         return;
       }
-      span.diag('gatewaysFound', gwList.map((x) => ({ key: x.key, name: x.name })));
+      span.diag('gatewaysFound', gwRes.map((x) => ({ key: x.key, name: x.name })));
 
-      // انتخاب: اولویت با درگاه تنظیم‌شده، بعد «اولی» یا «تصادفی»
       const wantKey = (K.config.gateway || '').trim();
       const strategy = K.config.gatewayStrategy || 'first';
-      const picked = wantKey ? (gwList.find((x) => x.key === wantKey) || null) : null;
+      const picked = wantKey ? (gwRes.find((x) => x.key === wantKey) || null) : null;
       const chosen = picked || (strategy === 'random'
-        ? gwList[Math.floor(Math.random() * gwList.length)]
-        : gwList[0]);
+        ? gwRes[Math.floor(Math.random() * gwRes.length)]
+        : gwRes[0]);
 
       step('یافتن درگاه', 'done');
       step(`درگاه: ${chosen.name}`, 'now');
-      ui.set(`⚡ ${chosen.name}`);
-
       K.log(`درگاه انتخاب‌شده: ${chosen.name} (${chosen.key})`);
 
-      // ---------- ۳) کلیک روی درگاه ------------------------------------------------
+      // ══ مرحله D — کلیک درگاه (بدون انتظار بلند) ════════════════════
       const wireHost = chosen.el.closest('[wire\\:id]') || document.querySelector('[wire\\:id]');
       const wire = S.wireOf(wireHost);
       const readGw = () => { try { return wire && wire.$get ? wire.$get('gateway') : undefined; } catch (e) { return undefined; } };
@@ -211,33 +250,28 @@
       const gwBefore = readGw();
       if (gwBefore !== chosen.key) {
         S.click(chosen.el);
-        // انتظار کوتاه و هوشمند: یا state عوض شود، یا شبکه پاسخ دهد (حداکثر ۱.۲ ثانیه)
+        // فقط ۴۰۰ms صبر: یا state عوض شد یا شبکه پاسخ داد — نه بیشتر
         const ok = await K.waitFor(() => {
-          const now = readGw();
-          if (now === chosen.key) return 'state';
-          const recent = g.__KVT_NET__?.recent(5) || [];
+          if (readGw() === chosen.key) return 'state';
+          const recent = g.__KVT_NET__?.recent(4) || [];
           for (const r of recent) {
-            if (Date.now() - r.t > 1500) continue;
-            if (r.kind === 'livewire' && r.status === 200) return 'net';
+            if (Date.now() - r.t > 900) continue;
+            if ((r.kind === 'livewire' || r.kind === 'payment') && r.status === 200) return 'net';
           }
           return null;
-        }, 1200, 30);
+        }, 400, 20);
         span.step('کلیک درگاه', { ok, gwBefore, gwAfter: readGw(), ms: span.elapsed() });
-        if (!ok && readGw() !== undefined && readGw() !== chosen.key) {
-          // آخرین سعی مستقیم با API کامپوننت
-          try { await wire?.$call?.('setGateway', chosen.key); } catch (e) { /* noop */ }
-        }
       } else {
         span.step('درگاه از قبل انتخاب بود', { gw: gwBefore });
       }
       step(`درگاه: ${chosen.name}`, 'done');
 
-      // ---------- ۴) دکمه‌ی پرداخت -------------------------------------------------
+      // ══ مرحله E — پرداخت ═══════════════════════════════════════════
       step('دکمه‌ی پرداخت', 'now');
       const payBtn = await K.waitFor(() => {
         const b = S.payButton();
         return b && !b.disabled && !b.classList.contains('disabled') ? b : null;
-      }, Math.max(1200, Number(K.config.payBtnWait) || 2500), 25);
+      }, Math.max(800, Number(K.config.payBtnWait) || 1400), 20);
 
       if (!payBtn) {
         step('دکمه‌ی پرداخت', 'fail');
@@ -251,45 +285,49 @@
       }
       step('دکمه‌ی پرداخت', 'done');
 
-      // ---------- ۵) کلیک پرداخت ---------------------------------------------------
       const tries = K.clamp(Number(K.config.payRetries) || 3, 1, 5);
       for (let i = 1; i <= tries && !st.cancelled; i++) {
         consume();
-        const clickMs = span.elapsed();
         S.click(payBtn);
-        span.step(`کلیک پرداخت ${i}/${tries}`, { clickMs });
-        ui.set(`💳 ارسال شد (${K.fa(i)}/${K.fa(tries)}) — انتقال به بانک...`);
+        span.step(`کلیک پرداخت ${i}/${tries}`, { atMs: span.elapsed() });
+        ui.set(`💳 ارسال شد — انتقال به بانک...`);
         step('کلیک پرداخت', 'now');
 
-        // ریدایرکت را از شبکه بگیر (سریع‌تر از DOM)
         const left = await K.waitFor(() => {
           if (st.handedOff) return 'flag';
           if (K.store.get('navigating', false)) return 'navigating';
           const lr = g.__KVT_NET__?.lastRedirect();
-          if (lr && Date.now() - lr.t < 4000) return 'livewire-redirect';
+          if (lr && Date.now() - lr.t < 3000) return 'livewire-redirect';
           if (!S.paymentPage()) return 'left-page';
           return null;
-        }, Math.max(1500, Number(K.config.payRedirectWait) || 3000), 40);
+        }, Math.max(900, Number(K.config.payRedirectWait) || 1800), 25);
 
         if (left) {
           st.handedOff = true;
           step('کلیک پرداخت', 'done');
           const total = span.elapsed();
-          ui.timer(total);
-          ui.set(total <= TARGET_MS
-            ? `✅ درگاه بانک باز شد (${(total / 1000).toFixed(2)} ثانیه)`
-            : `✅ درگاه بانک باز شد (${(total / 1000).toFixed(2)} ثانیه)`, 'ok');
+          const hitAt = Number(K.store.get('hitAt', 0)) || 0;
+          const sinceHit = hitAt ? Date.now() - hitAt : total;
+          const qtyNote = (qtyOn && qtyRes.ok) ? ` · ${wantQty} حلقه` : '';
+          const okFast = sinceHit <= 2000;
+          ui.timer(sinceHit);
+          ui.set(`✅ درگاه بانک باز شد — ${(sinceHit / 1000).toFixed(2)} ثانیه${qtyNote}`
+            + (okFast ? ' ⚡' : ' (هدف ۲ ثانیه)'), okFast ? 'ok' : 'warn');
+          K.trace?.info('PAY', `⏱ موجود شدن → درگاه: ${sinceHit}ms`, {
+            sinceHit, payMs: total, qty: wantQty, qtyOk: qtyRes?.ok, under2s: okFast
+          });
           ui.buttons([]);
-          finish(null, 'انتقال به درگاه انجام شد', { how: left, tries: i, totalMs: total });
-          K.notify('درگاه بانک باز شد', `پرداخت را سریع تکمیل کنید (${(total / 1000).toFixed(2)}s)`);
+          finish(null, 'انتقال به درگاه انجام شد', {
+            how: left, tries: i, totalMs: total, sinceHit, qty: wantQty, qtyOk: qtyRes?.ok
+          });
+          K.notify('درگاه بانک باز شد', `${wantQty} حلقه · ${(total / 1000).toFixed(2)}s`);
           return;
         }
 
-        // دکمه را دوباره پیدا کن (ممکن است Livewire دوباره رندر کرده باشد)
         const again = await K.waitFor(() => {
           const b = S.payButton();
           return b && !b.disabled ? b : null;
-        }, 800, 30);
+        }, 500, 20);
         span.step('بازبینی دکمه بعد از کلیک', { found: !!again, elapsed: span.elapsed() });
         if (!again) break;
       }
@@ -299,26 +337,22 @@
         consume(); K.beep('warn');
         ui.set('⚠️ به درگاه منتقل نشدم؛ «تایید و پرداخت» را خودتان بزنید.', 'warn');
         ui.buttons([['تلاش دوباره', () => lockRun(() => run(false)), 'ok']]);
-        finish(K.FAIL.PAY_NO_NAV, 'ریدایرکت به بانک انجام نشد', {
-          tries, elapsed: span.elapsed(),
-          net: g.__KVT_NET__?.recent(8) || null
-        });
+        finish(K.FAIL.PAY_NO_NAV, 'ریدایرکت به بانک انجام نشد', { tries, elapsed: span.elapsed() });
       }
     }
 
     // ---------- شروع ----------
-    // انتظار گذرا: صفحه ممکن است هنوز کامل رندر نشده باشد
     setSteps();
     ui.timer(0);
 
     if (armed && mismatch) {
-      span.warn = span.warn || (() => {});
       span.step('سبد ناهمخوان', { cartIds, armId });
       ui.set('⚠️ سبد شامل آیتم دیگری هم هست؛ برای جلوگیری از پرداخت اشتباه، دستی تایید کنید.', 'warn');
-      ui.buttons([[`انتخاب درگاه و پرداخت`, () => lockRun(() => run(false)), 'ok']]);
+      ui.buttons([['انتخاب درگاه و پرداخت', () => lockRun(() => run(false)), 'ok']]);
       finish(K.FAIL.PAY_GW_UNSET, 'سبد ناهمخوان؛ پرداخت خودکار انجام نشد', { cartIds, armId });
     } else if (armed && K.config.autoPay) {
       ui.set('⚡ پرداخت خودکار...');
+      // اجرای فوری، بدون انتظار برای چیز دیگری
       lockRun(() => run(true));
     } else {
       const gws = gatewayList();

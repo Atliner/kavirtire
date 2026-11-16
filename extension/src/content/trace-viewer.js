@@ -30,6 +30,7 @@
     PAY_NO_CART: 'سبد خالی',
     PAY_NO_GWBTN: 'دکمه‌ی درگاه نبود',
     PAY_GW_UNSET: 'درگاه ثبت نشد',
+    PAY_QTY_FAILED: 'تنظیم تعداد ناموفق',
     PAY_NO_PAYBTN: 'دکمه‌ی پرداخت غیرفعال',
     PAY_BTN_DISABLED: 'دکمه‌ی پرداخت غیرفعال',
     PAY_NO_NAV: 'ریدایرکت به بانک نشد',

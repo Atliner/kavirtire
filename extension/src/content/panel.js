@@ -135,6 +135,15 @@
       .pri button:hover{color:#4f46e5}
       .empty{color:#94a3b8;font-size:12px;text-align:center;padding:16px 0}
 
+      .qtybox{border:1px solid #e0e7ff;background:linear-gradient(180deg,#f8faff,#eef2ff);border-radius:11px;padding:8px 10px;margin-bottom:10px}
+      .qtyrow{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:3px 0}
+      .qtylbl{font-size:12px;font-weight:700;color:#3730a3}
+      .qtyhint{font-size:10px;color:#818cf8;background:#fff;border-radius:999px;padding:1px 7px;flex:none}
+      .qtyctl{display:flex;align-items:center;gap:0;margin-right:auto;direction:ltr;background:#fff;border:1px solid #c7d2fe;border-radius:9px;overflow:hidden}
+      .qtyctl button{width:28px;height:28px;border:0;background:#eef2ff;color:#4338ca;font-size:15px;font-weight:800;cursor:pointer;line-height:1}
+      .qtyctl button:hover{background:#e0e7ff}
+      .qtyctl input{width:44px;height:28px;border:0;text-align:center;font:inherit;font-size:13px;font-weight:800;color:#312e81;background:#fff}
+      .qtyctl input:focus{outline:0;background:#f5f3ff}
       .sec{font-size:11.5px;font-weight:700;color:#64748b;margin:12px 0 6px}
       .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
       .seg button{height:32px;border:1px solid #e5e7eb;background:#fff;border-radius:9px;font:inherit;font-size:11.5px;color:#334155;cursor:pointer;transition:.14s}
@@ -223,6 +232,26 @@
 
         <!-- پرداخت -->
         <div data-pane="pay" class="hidden">
+          <div class="qtybox">
+            <div class="qtyrow">
+              <span class="qtylbl">تعداد حلقه</span>
+              <div class="qtyctl">
+                <button id="qtyMinus" title="کاهش">−</button>
+                <input id="qty" type="number" min="1" max="10" value="2">
+                <button id="qtyPlus" title="افزایش">+</button>
+              </div>
+              <span class="qtyhint">حداکثر ۲</span>
+            </div>
+            <div class="qtyrow">
+              <span class="qtylbl">تنظیم خودکار تعداد</span>
+              <label class="sw"><input type="checkbox" id="qtyEnabled"><span></span></label>
+            </div>
+            <div class="qtyrow">
+              <span class="qtylbl">اگر تعداد ست نشد، پرداخت نکن</span>
+              <label class="sw"><input type="checkbox" id="qtyRequired"><span></span></label>
+            </div>
+          </div>
+
           <div class="sec">درگاه پرداخت</div>
           <div class="seg gw" id="gws"></div>
           <div class="opt"><span>انتخاب درگاه و «تایید و پرداخت» خودکار</span><label class="sw"><input type="checkbox" id="autoPay"><span></span></label></div>
@@ -570,6 +599,9 @@
       safe('autoAdd', (e) => { e.checked = !!c.autoAdd; });
       safe('stopAfterHit', (e) => { e.checked = !!c.stopAfterHit; });
       safe('buyIfAlreadyAvailable', (e) => { e.checked = !!c.buyIfAlreadyAvailable; });
+      safe('qtyEnabled', (e) => { e.checked = c.qtyEnabled !== false; });
+      safe('qtyRequired', (e) => { e.checked = !!c.qtyRequired; });
+      safe('qty', (e) => { if (document.activeElement !== e) e.value = c.quantity || 2; });
       safe('autoPay', (e) => { e.checked = !!c.autoPay; });
       safe('focusOnHit', (e) => { e.checked = !!c.focusOnHit; });
       safe('focusGatewayTab', (e) => { e.checked = !!c.focusGatewayTab; });
@@ -591,6 +623,9 @@
     bindBool('autoAdd', 'autoAdd');
     bindBool('stopAfterHit', 'stopAfterHit');
     bindBool('buyIfAlreadyAvailable', 'buyIfAlreadyAvailable');
+    bindBool('qtyEnabled', 'qtyEnabled');
+    bindBool('qtyRequired', 'qtyRequired');
+    bindNum('qty', 'quantity', { min: 1, max: 10 });
     bindBool('autoPay', 'autoPay');
     bindBool('focusOnHit', 'focusOnHit');
     bindBool('sound', 'sound');
@@ -625,6 +660,17 @@
       armIn.value = sec;
       K.applyConfig({ armTtl: Math.round(sec * 1000) });
     });
+
+    // دکمه‌های ± تعداد
+    const qtyIn = $('#qty');
+    const setQty = (v) => {
+      const n = K.clamp(Math.round(Number(v) || 1), 1, 10);
+      qtyIn.value = n;
+      K.applyConfig({ quantity: n, qtyEnabled: true });
+    };
+    $('#qtyPlus').onclick = () => setQty(Number(qtyIn.value) + 1);
+    $('#qtyMinus').onclick = () => setQty(Number(qtyIn.value) - 1);
+    qtyIn.addEventListener('change', () => setQty(qtyIn.value));
 
     $('#focusGatewayTab').addEventListener('change', async (e) => {
       const on = e.target.checked;
@@ -685,7 +731,7 @@
       const g = st.guard || {};
       const mode = $('#pMode');
       if (st.running) {
-        mode.textContent = st.busy ? 'در حال خرید' : 'در حال پایش';
+        mode.textContent = (st.busy ? 'در حال خرید' : 'در حال پایش') + (K.config.qtyEnabled ? ` · ${K.config.quantity || 2} حلقه` : '');
         mode.className = 'pill good';
       } else {
         mode.textContent = 'متوقف';

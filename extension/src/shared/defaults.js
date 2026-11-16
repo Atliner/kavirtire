@@ -19,10 +19,10 @@
     schema: 1,
 
     // --- پایش موجودی ---
-    interval: 1200,          // فاصله‌ی پایه‌ی چک API (میلی‌ثانیه)
+    interval: 800,          // فاصله‌ی پایه‌ی چک API (میلی‌ثانیه)
     jitter: true,            // فاصله‌ی تصادفی برای شبیه شدن به رفتار انسانی
-    minGap: 600,             // حداقل فاصله بین دو درخواست (ms)
-    maxPerMinute: 45,        // سقف درخواست در دقیقه (بودجه‌ی سراسری)
+    minGap: 450,             // حداقل فاصله بین دو درخواست (ms)
+    maxPerMinute: 60,        // سقف درخواست در دقیقه (بودجه‌ی سراسری)
     timeout: 8000,           // تایم‌اوت هر درخواست (ms)
 
     // --- چک از طریق صفحه (وقتی API محدود شده) ---
@@ -44,10 +44,16 @@
     payRetries: 3,
     paymentUrl: '/esale/payment',
     cartItemSelector: '.checkout-item',
-    addTimeout: 1600,            // بودجه‌ی هر تلاش افزودن به سبد (ms) — هدف: زیر ۲ ثانیه
-    navWait: 900,                // صبر برای ریدایرکت خودکار Livewire (ms)
-    payBtnWait: 2500,            // سقف انتظار برای فعال شدن دکمه‌ی پرداخت (ms)
-    payRedirectWait: 3000,       // سقف انتظار برای ریدایرکت به بانک (ms)
+    // --- تعداد حلقه (در صفحه‌ی پیش از درگاه) ---
+    quantity: 2,                 // تعداد حلقه‌ی هدف (۱..۱۰) — پیش‌فرض ۲
+    qtyEnabled: true,            // تنظیم خودکار تعداد
+    qtyWait: 1200,               // بودجه‌ی زمانی تعیین تعداد (ms)
+    qtyRequired: false,          // اگر تعداد ست نشد، جلوی پرداخت را بگیر
+
+    addTimeout: 900,             // بودجه‌ی هر تلاش افزودن به سبد (ms)
+    navWait: 500,                // صبر برای ریدایرکت خودکار Livewire (ms)
+    payBtnWait: 1400,            // سقف انتظار برای فعال شدن دکمه‌ی پرداخت (ms)
+    payRedirectWait: 1800,       // سقف انتظار برای ریدایرکت به بانک (ms)
     gatewayStrategy: 'first',    // اگر درگاه تنظیم‌شده در صفحه نبود: first | random
     gateway: 'refahk',
 
@@ -89,7 +95,7 @@
       label: 'امن (کمترین ریسک)',
       hint: 'دو برابر کندتر، بدون چک صفحه، استراحت طولانی‌تر',
       patch: {
-        interval: 2500, jitter: true, minGap: 1500, maxPerMinute: 24,
+        interval: 1800, jitter: true, minGap: 1000, maxPerMinute: 30,
         pageFallback: false, breaker: 4, longCooldown: 900000, maxCooldown: 180000
       }
     },
@@ -97,7 +103,7 @@
       label: 'متعادل (پیشنهادی)',
       hint: 'تعادل سرعت و ایمنی',
       patch: {
-        interval: 1200, jitter: true, minGap: 700, maxPerMinute: 45,
+        interval: 800, jitter: true, minGap: 700, maxPerMinute: 45,
         pageFallback: false, breaker: 6, longCooldown: 600000, maxCooldown: 120000
       }
     },
@@ -105,7 +111,7 @@
       label: 'تهاجمی (پرریسک)',
       hint: 'سریع‌تر، احتمال محدودیت بیشتر — با مسئولیت خودتان',
       patch: {
-        interval: 700, jitter: true, minGap: 400, maxPerMinute: 90,
+        interval: 500, jitter: true, minGap: 300, maxPerMinute: 110,
         pageFallback: true, pageInterval: 5000, pageMaxPerMinute: 10,
         breaker: 10, longCooldown: 300000, maxCooldown: 60000
       }
@@ -127,7 +133,7 @@
   g.KVT_PRESETS = PRESETS;
   g.KVT_PSP_HOST_PATTERNS = PSP_HOST_PATTERNS;
   g.KVT_STORAGE_KEY = STORAGE_KEY;
-  g.KVT_VERSION = '1.1.0';
+  g.KVT_VERSION = '1.2.0';
 
   // ادغام امن: فقط کلیدهای شناخته‌شده، با نوع درست
   g.KVT_mergeConfig = function (base, patch) {

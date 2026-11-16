@@ -220,15 +220,20 @@
   S.click = (el) => {
     if (!el) return false;
     const opts = { bubbles: true, cancelable: true, composed: true, button: 0 };
+    // ⚠️ هر رویداد جدا محافظت می‌شود: نبودِ PointerEvent نباید مانع کلیک شود
+    const fire = (Ctor, type) => {
+      try { if (typeof Ctor === 'function') el.dispatchEvent(new Ctor(type, opts)); } catch (e) { /* noop */ }
+    };
+    fire(g.PointerEvent, 'pointerdown');
+    fire(g.MouseEvent, 'mousedown');
+    fire(g.PointerEvent, 'pointerup');
+    fire(g.MouseEvent, 'mouseup');
     try {
-      el.dispatchEvent(new PointerEvent('pointerdown', opts));
-      el.dispatchEvent(new MouseEvent('mousedown', opts));
-      el.dispatchEvent(new PointerEvent('pointerup', opts));
-      el.dispatchEvent(new MouseEvent('mouseup', opts));
-      el.click();
+      if (typeof el.click === 'function') el.click();
+      else el.dispatchEvent(new MouseEvent('click', opts));
       return true;
     } catch (e) {
-      try { el.click(); return true; } catch (e2) { return false; }
+      try { el.dispatchEvent(new g.MouseEvent('click', opts)); return true; } catch (e2) { return false; }
     }
   };
 

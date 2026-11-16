@@ -117,23 +117,35 @@
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
         K.bridge.fire('config:set', K.config);
+        K.store.set('cfgSnap', K.config);   // شروع سریع دفعه‌ی بعد
       }, 120);
     }
     return K.config;
   };
 
+  // ---------- راه‌اندازی سریع (بدون بلاک) ----------
+  // ⚠️ درس سرعت: انتظار برای پیام پس‌زمینه، شروع پایش را چند صد میلی‌ثانیه
+  // عقب می‌انداخت. Snapshot همگام localStorage بلافاصله در دسترس است و
+  // تنظیمات معتبر پس‌زمینه بعداً اعمال می‌شود (hot-reload).
+  try {
+    const snap = K.store.get('cfgSnap', null);
+    if (snap && typeof snap === 'object') K.config = mergeConfig(K.config, snap);
+  } catch (e) { /* noop */ }
+
+  K.configReady = false;
   K.ready = (async () => {
-    // چند تلاش کوچک: پل ممکن است در اولین میلی‌ثانیه‌ها آماده نباشد
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       try {
-        const stored = await K.bridge.call('config:get', null, 4000);
+        const stored = await K.bridge.call('config:get', null, 1500);
         if (stored && typeof stored === 'object') {
           K.config = mergeConfig(K.config, stored);
+          K.configReady = true;
+          K.store.set('cfgSnap', K.config);   // برای شروع سریع بار بعد
           break;
         }
       } catch (e) {
-        if (i === 3) console.warn('[KVT] تنظیمات از پس‌زمینه خوانده نشد؛ پیش‌فرض‌ها استفاده می‌شوند.', e.message);
-        await new Promise((r) => setTimeout(r, 250));
+        if (i === 2) console.warn('[KVT] تنظیمات از پس‌زمینه خوانده نشد؛ پیش‌فرض‌ها استفاده می‌شوند.', e.message);
+        await new Promise((r) => setTimeout(r, 120));
       }
     }
     K.emit('ready', K.config);

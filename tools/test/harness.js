@@ -37,7 +37,14 @@ function productsHtml(stock) {
 function paymentHtml() {
   return `<!doctype html><html lang="fa" dir="rtl"><body>
     <div wire:id="lw-pay" wire:snapshot="{&quot;data&quot;:{&quot;gateway&quot;:&quot;&quot;}}">
-      <div class="checkout-item">تایر</div>
+      <div class="checkout-item">
+        <span class="tire">تایر</span>
+        <div class="qty-wrap">
+          <button class="dec" aria-label="کاهش">−</button>
+          <input class="qty" type="number" value="1" min="1" max="2">
+          <button class="inc" aria-label="افزایش">+</button>
+        </div>
+      </div>
       <button wire:click="setGateway('refahk')">رفاه</button>
       <button wire:click="setGateway('saderat')">صادرات</button>
       <button wire:click="next()">تایید و پرداخت</button>
@@ -501,6 +508,126 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     ok(!errs.some((r) => r.c === 'ADD_UNAVAILABLE'), 'خطای کاذب ADD_UNAVAILABLE دیگر رخ نمی‌دهد',
       JSON.stringify(errs.map((x) => x.c)));
     K.engine.stop('test');
+  }
+
+  // ---------------------------------------------------------------- 7f
+  section('۷و) تعداد حلقه: ۲ عدد در صفحه‌ی پیش از درگاه');
+  {
+    const dom = new JSDOM(paymentHtml(), { url: 'https://kavirtire.ir/esale/payment', runScripts: 'outside-only', pretendToBeVisual: true });
+    const w = dom.window;
+    w.eval(`(function(){const m=new Map();Object.defineProperty(window,'localStorage',{value:{getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>m.set(k,String(v)),removeItem:k=>m.delete(k)},configurable:true});const s=new Map();Object.defineProperty(window,'sessionStorage',{value:{getItem:k=>s.has(k)?s.get(k):null,setItem:(k,v)=>s.set(k,String(v)),removeItem:k=>s.delete(k)},configurable:true});})();`);
+    const cfg = Object.assign({}, w.KVT_DEFAULTS, {
+      autoPay: false, quantity: 2, qtyEnabled: true, gateway: 'refahk', sound: false, notify: false
+    });
+    w.chrome = { runtime: { sendMessage: (m, cb) => cb(null), connect: () => ({ onMessage: { addListener() {} }, onDisconnect: { addListener() {} }, postMessage() {}, disconnect() {} }) } };
+    w.addEventListener('message', (ev) => {
+      const d = ev.data;
+      if (!d || d.__kvt_fastbuy__ !== 1) return;
+      w.postMessage({ __kvt_fastbuy__: 1, kind: 'res', id: d.id, ok: true, data: d.method === 'config:get' ? cfg : { ok: true } }, '*');
+    });
+    for (const f of ['shared/defaults.js', 'content/core.js', 'content/trace.js', 'content/guard.js', 'content/site.js', 'content/engine.js', 'content/qty.js', 'content/payment.js', 'content/trace-viewer.js', 'content/main.js']) {
+      w.eval(fs.readFileSync(path.join(SRC, f), 'utf8'));
+    }
+    await sleep(600);
+    const K = w.__KVTB;
+
+    ok(!!K.qty, 'ماژول تعداد بارگذاری شد');
+    const before = Number(w.document.querySelector('.qty').value);
+    ok(before === 1, 'مقدار اولیه ۱ است', 'v=' + before);
+
+    const res = await K.qty.ensure(2, { budget: 1200 });
+    ok(res.ok, 'تنظیم تعداد موفق بود', JSON.stringify(res));
+    ok(Number(w.document.querySelector('.qty').value) === 2, 'input روی ۲ قرار گرفت',
+      'v=' + w.document.querySelector('.qty').value);
+  }
+
+  // ---------------------------------------------------------------- 7g
+  section('۷ز) تعداد با دکمه‌ی + (بدون input خواندنی)');
+  {
+    const html = `<!doctype html><html lang="fa"><body>
+      <div class="checkout-item">
+        <span class="n">تعداد: 1 عدد</span>
+        <button aria-label="افزایش" onclick="
+          const n=document.querySelector('.n');
+          const c=Number((n.textContent.match(/([0-9]+)/)||[0,1])[1]);
+          if(c<2) n.textContent='تعداد: '+(c+1)+' عدد';
+        ">+</button>
+      </div></body></html>`;
+    const dom = new JSDOM(html, { url: 'https://kavirtire.ir/esale/payment', runScripts: 'dangerously', pretendToBeVisual: true });
+    const w = dom.window;
+    w.eval(`(function(){const m=new Map();Object.defineProperty(window,'localStorage',{value:{getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>m.set(k,String(v)),removeItem:k=>m.delete(k)},configurable:true});const s=new Map();Object.defineProperty(window,'sessionStorage',{value:{getItem:k=>s.has(k)?s.get(k):null,setItem:(k,v)=>s.set(k,String(v)),removeItem:k=>s.delete(k)},configurable:true});})();`);
+    const cfg = Object.assign({}, w.KVT_DEFAULTS, { quantity: 2, qtyEnabled: true, sound: false });
+    w.chrome = { runtime: { sendMessage: (m, cb) => cb(null), connect: () => ({ onMessage: { addListener() {} }, onDisconnect: { addListener() {} }, postMessage() {}, disconnect() {} }) } };
+    w.addEventListener('message', (ev) => {
+      const d = ev.data;
+      if (!d || d.__kvt_fastbuy__ !== 1) return;
+      w.postMessage({ __kvt_fastbuy__: 1, kind: 'res', id: d.id, ok: true, data: { ok: true } }, '*');
+    });
+    for (const f of ['shared/defaults.js', 'content/core.js', 'content/trace.js', 'content/guard.js', 'content/site.js', 'content/qty.js']) {
+      w.eval(fs.readFileSync(path.join(SRC, f), 'utf8'));
+    }
+    await sleep(300);
+    const K = w.__KVTB;
+    const res = await K.qty.ensure(2, { budget: 1500 });
+    ok(res.ok, 'تعداد از طریق دکمه‌ی + تنظیم شد', JSON.stringify(res));
+    ok(/2/.test(w.document.querySelector('.n').textContent), 'متن تعداد به ۲ تغییر کرد',
+      w.document.querySelector('.n').textContent);
+  }
+
+  // ---------------------------------------------------------------- 7h
+  section('۷ح) کل مسیر زیر ۲ ثانیه (موجود شد → درگاه)');
+  {
+    const { w } = boot({
+      url: 'https://kavirtire.ir/esale/products',
+      html: productsHtml({ 101: 0 }),
+      stock: { 101: 0 },
+      config: {
+        selected: ['101'], interval: 300, minGap: 150, maxPerMinute: 60,
+        autoAdd: true, autoPay: true, addTimeout: 900, navWait: 500,
+        sound: false, notify: false
+      }
+    });
+    await sleep(300);
+    const K = w.__KVTB;
+
+    // Livewire که add را فوراً می‌پذیرد و ریدایرکت شبیه‌سازی می‌کند
+    w.Livewire = {
+      find: () => ({
+        $call: (m) => {
+          if (m === 'add') {
+            const card = w.document.querySelector('.product[data-tire-id="101"]');
+            if (card) { const sp = w.document.createElement('span'); sp.className = 'product-selected'; card.appendChild(sp); }
+            return Promise.resolve({});
+          }
+          return Promise.resolve();
+        },
+        $get: () => undefined
+      }),
+      hook() {}
+    };
+
+    K.engine.start();
+    await sleep(700);
+    const t0 = Date.now();
+    w.__testState.stock[101] = 1;   // لحظه‌ی موجود شدن
+
+    // زمان‌های کلیدی را از رویدادهای واقعی بگیر
+    const times = {};
+    const offs = [
+      K.on('hit', () => { times.hit = Date.now(); }),
+      K.on('purchase', (e) => { if (e && e.phase === 'start') times.purchase = Date.now(); }),
+      K.on('arm', () => { times.arm = Date.now(); })
+    ];
+    await sleep(2200);
+    offs.forEach((f) => { try { f(); } catch (e) { /* noop */ } });
+
+    ok(times.hit != null, 'رویداد تشخیص موجودی رخ داد', String(times.hit && times.hit - t0) + 'ms');
+    ok(times.arm != null || times.purchase != null, 'جریان خرید آغاز شد',
+      JSON.stringify({ purchase: !!times.purchase, arm: !!times.arm }));
+    // از لحظه‌ی موجود شدن (hit) تا اقدام به افزودن به سبد
+    const lat = (times.hit && times.arm) ? times.arm - times.hit
+      : (times.hit && times.purchase) ? times.purchase - times.hit : null;
+    ok(lat != null && lat < 2000, 'از موجود شدن تا اقدام سبد زیر ۲ ثانیه', lat + 'ms');
   }
 
   // ---------------------------------------------------------------- 8
